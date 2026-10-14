@@ -5,19 +5,24 @@ using Veld.Core;
 namespace Veld.Gameplay;
 
 /// <summary>
-/// Martial-law heat. Attacking British soldiers, or being seen shooting townsfolk near the garrison,
-/// raises Heat; Level (0..3) is derived from it and every British NPC becomes hostile while Level > 0.
-/// Heat decays when no soldier has the player in view. The magistrate can clear it for a fee
-/// (dialogue action clear_wanted).
+/// Martial-law heat (the police, on a modern map). Attacking officers, or being seen attacking
+/// townsfolk near one, raises Heat; Level (0..3) is derived from it and every officer becomes hostile
+/// while Level > 0. Heat decays when no officer has the player in view. A fine clears it (dialogue
+/// action clear_wanted). Talks to the scene only through the ports it is given.
 /// </summary>
 public sealed class WantedSystem : IWantedState
 {
-    private readonly Game _game;
+    private readonly IWorldQuery _world;
+    private readonly INotifier _notifier;
     public int Level { get; private set; }
     public float Heat { get; private set; }
     private float _sinceSeen;
 
-    public WantedSystem(Game game) => _game = game;
+    public WantedSystem(IWorldQuery world, INotifier notifier)
+    {
+        _world = world;
+        _notifier = notifier;
+    }
 
     public string Label => Level switch { 0 => "", 1 => "WANTED", 2 => "WANTED: patrols alerted", _ => "WANTED: shoot on sight" };
 
@@ -31,52 +36,45 @@ public sealed class WantedSystem : IWantedState
     {
         Level = 0;
         Heat = 0f;
-        var world = _game.World;
-        if (world == null) return;
-        foreach (var n in world.Npcs) if (n.Faction == Faction.British) n.Provoked = false;
+        foreach (var n in _world.Npcs) if (n.Faction == Faction.British) n.Provoked = false;
     }
 
     public void Update(float dt)
     {
         if (Heat <= 0f) { Level = 0; return; }
-        var player = _game.Player;
-        var world = _game.World;
+        var player = _world.Player;
         bool seen = false;
-        if (player != null && world != null)
-            foreach (var n in world.Npcs)
-                if (!n.IsDead && n.Faction == Faction.British && n.GlobalPosition.DistanceTo(player.GlobalPosition) < 90f) { seen = true; break; }
+        if (player != null)
+            foreach (var n in _world.Npcs)
+                if (!n.IsDead && n.Faction == Faction.British && n.Position.DistanceTo(player.Position) < 90f) { seen = true; break; }
         _sinceSeen = seen ? 0f : _sinceSeen + dt;
         if (_sinceSeen > 6f) Heat = Mathf.Max(0f, Heat - dt * 1.5f);
         int level = Heat <= 0f ? 0 : Mathf.Clamp(Mathf.CeilToInt(Heat / 40f), 1, 3);
         if (level != Level)
         {
-            if (level == 0) _game.Notify(_game.Data.World.IsModern ? "The police have lost interest in you." : "The soldiers have lost interest in you.");
+            if (level == 0) _notifier.Notify(_world.IsModern ? "The police have lost interest in you." : "The soldiers have lost interest in you.");
             Level = level;
         }
     }
 
-    /// <summary>A shot was fired. Townsfolk nearby scatter.</summary>
-    public void OnGunfire(Vector3 position, Node shooter)
+    /// <summary>A shot was fired. Townsfolk nearby scatter; the shooter, if a character, is not told about its own shot.</summary>
+    public void OnGunfire(Vector3 position, INpcView? shooter)
     {
-        var world = _game.World;
-        if (world == null) return;
-        foreach (var n in world.Npcs)
-            if (n != shooter && n.GlobalPosition.DistanceTo(position) < 35f) n.Alert(position);
+        foreach (var n in _world.Npcs)
+            if (n != shooter && n.Position.DistanceTo(position) < 35f) n.Alert(position);
     }
 
-    public void ReportAttack(Npc victim, Player attacker, bool killed)
+    public void ReportAttack(INpcView victim, IPlayerView attacker, bool killed)
     {
-        var world = _game.World;
-        if (world == null) return;
         float add;
         if (victim.Faction == Faction.British) add = killed ? 60f : 30f;
         else if (victim.Faction == Faction.Outlaw) add = 0f;
         else
         {
-            // civilians and burghers: only a crime if a soldier is close enough to notice
+            // civilians and burghers: only a crime if an officer is close enough to notice
             bool witnessed = false;
-            foreach (var n in world.Npcs)
-                if (!n.IsDead && n.Faction == Faction.British && n.GlobalPosition.DistanceTo(victim.GlobalPosition) < 110f) { witnessed = true; break; }
+            foreach (var n in _world.Npcs)
+                if (!n.IsDead && n.Faction == Faction.British && n.Position.DistanceTo(victim.Position) < 110f) { witnessed = true; break; }
             add = witnessed ? (killed ? 45f : 15f) : 0f;
         }
         if (add <= 0f) return;
@@ -84,9 +82,9 @@ public sealed class WantedSystem : IWantedState
         Heat = Mathf.Min(120f, Heat + add);
         Level = Mathf.Clamp(Mathf.CeilToInt(Heat / 40f), 1, 3);
         _sinceSeen = 0f;
-        if (wasClear) _game.Notify(_game.Data.World.IsModern ? "The police have been called. Armed officers will shoot on sight." : "The garrison has been alerted. Soldiers will shoot on sight.");
-        // nearby soldiers join in at once
-        foreach (var n in world.Npcs)
-            if (!n.IsDead && n.Faction == Faction.British && n.GlobalPosition.DistanceTo(attacker.GlobalPosition) < 150f) n.Provoked = true;
+        if (wasClear) _notifier.Notify(_world.IsModern ? "The police have been called. Armed officers will shoot on sight." : "The garrison has been alerted. Soldiers will shoot on sight.");
+        // nearby officers join in at once
+        foreach (var n in _world.Npcs)
+            if (!n.IsDead && n.Faction == Faction.British && n.Position.DistanceTo(attacker.Position) < 150f) n.Provoked = true;
     }
 }

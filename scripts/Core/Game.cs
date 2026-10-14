@@ -78,7 +78,7 @@ public partial class Game : Node, IEconomy, INotifier
         Pence = Data.World.StartMoney;
         var world = new LiveWorld(this);
         Missions = new MissionManager(Data, world, this, this);
-        Wanted = new WantedSystem(this);
+        Wanted = new WantedSystem(world, this);
         Dialogue = new DialogueSystem(Data, Missions, Wanted, world, this, this, new LiveClock(this), new LiveDialogueView(this));
         GD.Print($"Veld data: {Data.Towns.Count} towns, {Data.Npcs.Count} npcs, {Data.Missions.Count} missions, {Data.Weapons.Count} weapons");
     }

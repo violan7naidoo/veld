@@ -386,7 +386,7 @@ public partial class Player : CharacterBody3D, IPlayerView
         var shot = w.Fire(this, origin, Camera.AimDirection, Weapon.HitSpread(w.Data, Aiming), exclude);
         ShotEffects.Show(GetParent(), shot, _model.MuzzleWorld);
         Game.Instance.Main?.Sfx.Gunshot(w.Data.Kind, GlobalPosition);
-        Game.Instance.Wanted.OnGunfire(GlobalPosition, this);
+        Game.Instance.Wanted.OnGunfire(GlobalPosition, null);
         if (shot.Hit && shot.Collider is Npc npc) npc.TakeDamage(w.Data.Damage, this);
         else if (shot.Hit && shot.Collider is Horse horse) horse.Spook();
         Camera.Pitch += 0.012f * (w.Data.Kind == "rifle" ? 1.6f : 1f);

@@ -76,9 +76,10 @@ public partial class Game : Node, IEconomy, INotifier
         Data = DataLoader.LoadAll();
         Factions.Modern = Data.World.IsModern;
         Pence = Data.World.StartMoney;
-        Missions = new MissionManager(Data, new LiveWorld(this), this, this);
-        Dialogue = new DialogueSystem(this);
+        var world = new LiveWorld(this);
+        Missions = new MissionManager(Data, world, this, this);
         Wanted = new WantedSystem(this);
+        Dialogue = new DialogueSystem(Data, Missions, Wanted, world, this, this, new LiveClock(this), new LiveDialogueView(this));
         GD.Print($"Veld data: {Data.Towns.Count} towns, {Data.Npcs.Count} npcs, {Data.Missions.Count} missions, {Data.Weapons.Count} weapons");
     }
 

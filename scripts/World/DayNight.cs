@@ -10,10 +10,17 @@ public enum Quality { Low, Medium, High }
 /// Sky, sun, moon, clouds, fog and post-processing, driven by a 24-hour clock. Also keeps the list of
 /// lamps and lit windows that come on at night. Graphics quality presets live in ApplyQuality.
 /// </summary>
-public partial class DayNight : Node3D
+public partial class DayNight : Node3D, IClock
 {
     public float Hour { get; set; } = 7.5f;
     public int Day { get; set; } = 1;
+
+    /// <summary>Move the clock forward, rolling past midnight into the next day.</summary>
+    public void Advance(float hours)
+    {
+        Hour += hours;
+        while (Hour >= 24f) { Hour -= 24f; Day++; }
+    }
     public float DayLengthSeconds { get; set; } = 720f;
     public bool Paused { get; set; }
     public Quality Quality { get; private set; } = Quality.High;

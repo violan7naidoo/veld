@@ -30,7 +30,7 @@
 - [x] 14. **Unit test runner** - `tests/Veld.Tests` (xUnit) for pure logic, wired into the build and documented in `AGENTS.md`
 - [ ] 15. **Game services seam** - the mission, dialogue and wanted systems stop reaching into the `Game` singleton; each receives small ports (economy, notifier, clock, world query, dialogue view) with live adapters in the game and in-memory fakes in tests
   - [x] 15a. **Ports and the mission system** - `IEconomy`, `INotifier`, `IWorldQuery`, `INpcView`, `IPlayerView` with live adapters; `MissionManager` on the ports; first behaviour tests with fakes
-  - [ ] 15b. **Dialogue on the ports** - `IClock` and `IDialogueView` added; `DialogueSystem` conditions and actions tested with fakes
+  - [x] 15b. **Dialogue on the ports** - `IClock` and `IDialogueView` added; `DialogueSystem` conditions and actions tested with fakes
   - [ ] 15c. **Wanted system on the ports** - `WantedSystem` heat, witnesses and decay tested with a fake world
 - [ ] 16. **Mission step registry** - `IMissionStep` implementations looked up by type name replace the switches in `MissionManager`; existing JSON unchanged
 - [ ] 17. **Dialogue action and condition registries** - the same treatment for `DialogueSystem.Holds` and `Apply`

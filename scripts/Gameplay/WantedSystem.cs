@@ -10,7 +10,7 @@ namespace Veld.Gameplay;
 /// Heat decays when no soldier has the player in view. The magistrate can clear it for a fee
 /// (dialogue action clear_wanted).
 /// </summary>
-public sealed class WantedSystem
+public sealed class WantedSystem : IWantedState
 {
     private readonly Game _game;
     public int Level { get; private set; }

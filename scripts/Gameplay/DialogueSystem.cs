@@ -1,41 +1,55 @@
-using System;
 using System.Collections.Generic;
 using Godot;
-using Veld.Characters;
 using Veld.Core;
 
 namespace Veld.Gameplay;
 
 /// <summary>
-/// Plays a dialogue tree from data/dialogue.json through the DialogueBox. Choices can be hidden by a
+/// Plays a dialogue tree from data/dialogue.json through the dialogue view. Choices can be hidden by a
 /// Condition and can run an Action when picked:
 ///   conditions: mission_available:id, mission_active:id, mission_step:id:n, mission_done:id, wanted, not_wanted, money:pence
 ///               (several may be combined with commas; all must hold)
 ///   actions:    start_mission:id, talk_done, give_money:pence, take_money:pence, give_ammo:weapon:count, heal, sleep:hours, clear_wanted:pence, end
+/// Talks to the scene only through the ports it is given, so it runs the same against fakes.
 /// </summary>
 public sealed class DialogueSystem
 {
-    private readonly Game _game;
+    private readonly GameData _gameData;
+    private readonly MissionManager _missions;
+    private readonly IWantedState _wanted;
+    private readonly IWorldQuery _world;
+    private readonly IEconomy _economy;
+    private readonly INotifier _notifier;
+    private readonly IClock _clock;
+    private readonly IDialogueView _view;
+
     private DialogueData? _data;
-    private Npc? _npc;
-    private string _nodeId = "";
+    private INpcView? _npc;
     private readonly List<DialogueChoice> _visible = new();
 
     public bool IsActive => _data != null;
 
-    public DialogueSystem(Game game) => _game = game;
-
-    public void Start(string dialogueId, Npc npc)
+    public DialogueSystem(GameData data, MissionManager missions, IWantedState wanted, IWorldQuery world, IEconomy economy, INotifier notifier, IClock clock, IDialogueView view)
     {
-        if (!_game.Data.Dialogues.TryGetValue(dialogueId, out var data))
+        _gameData = data;
+        _missions = missions;
+        _wanted = wanted;
+        _world = world;
+        _economy = economy;
+        _notifier = notifier;
+        _clock = clock;
+        _view = view;
+    }
+
+    public void Start(string dialogueId, INpcView npc)
+    {
+        if (!_gameData.Dialogues.TryGetValue(dialogueId, out var data))
         {
-            _game.Notify($"{npc.Data.Name} has nothing to say. (missing dialogue '{dialogueId}')");
+            _notifier.Notify($"{npc.Name} has nothing to say. (missing dialogue '{dialogueId}')");
             return;
         }
         _data = data;
         _npc = npc;
-        _game.InputLocked = true;
-        Input.MouseMode = Input.MouseModeEnum.Visible;
         Show(data.Start);
     }
 
@@ -46,14 +60,13 @@ public sealed class DialogueSystem
             End();
             return;
         }
-        _nodeId = nodeId;
         _visible.Clear();
         var labels = new List<string>();
         foreach (var c in node.Choices)
             if (Holds(c.Condition)) { _visible.Add(c); labels.Add(c.Text); }
         if (labels.Count == 0) labels.Add("(Leave)");
-        string speaker = string.IsNullOrEmpty(_data.Speaker) ? _npc?.Data.Name ?? "" : _data.Speaker;
-        _game.Main?.DialogueBox.Show(speaker, node.Text, labels, Choose);
+        string speaker = string.IsNullOrEmpty(_data.Speaker) ? _npc?.Name ?? "" : _data.Speaker;
+        _view.Open(speaker, node.Text, labels, Choose);
     }
 
     public void Choose(int index)
@@ -77,38 +90,33 @@ public sealed class DialogueSystem
             switch (parts[0])
             {
                 case "start_mission":
-                    if (parts.Length > 1) _game.Missions.Start(parts[1]);
+                    if (parts.Length > 1) _missions.Start(parts[1]);
                     break;
                 case "talk_done":
-                    if (_npc != null) _game.Missions.OnTalked(_npc.Data.Id);
+                    if (_npc != null) _missions.OnTalked(_npc.Id);
                     break;
                 case "give_money":
-                    if (parts.Length > 1 && int.TryParse(parts[1], out var give)) { _game.AddMoney(give); _game.Main?.Sfx.Coins(_npc?.GlobalPosition ?? Vector3.Zero); }
+                    if (parts.Length > 1 && int.TryParse(parts[1], out var give)) { _economy.Add(give); _notifier.Coins(_npc?.Position ?? Vector3.Zero); }
                     break;
                 case "take_money":
-                    if (parts.Length > 1 && int.TryParse(parts[1], out var take)) _game.TrySpend(take);
+                    if (parts.Length > 1 && int.TryParse(parts[1], out var take)) _economy.TrySpend(take);
                     break;
                 case "clear_wanted":
                     if (parts.Length > 1 && int.TryParse(parts[1], out var fee))
                     {
-                        if (_game.TrySpend(fee)) { _game.Wanted.ClearWanted(); _game.Notify("Paid " + Money.Format(fee) + ". The complaint is withdrawn."); }
-                        else _game.Notify("You cannot afford the fine.");
+                        if (_economy.TrySpend(fee)) { _wanted.ClearWanted(); _notifier.Notify("Paid " + Money.Format(fee) + ". The complaint is withdrawn."); }
+                        else _notifier.Notify("You cannot afford the fine.");
                     }
-                    else _game.Wanted.ClearWanted();
+                    else _wanted.ClearWanted();
                     break;
                 case "give_ammo":
-                    if (parts.Length > 2 && int.TryParse(parts[2], out var count) && _game.Player != null && _game.Player.Weapons.TryGetValue(parts[1], out var weapon))
-                        weapon.Reserve += count;
+                    if (parts.Length > 2 && int.TryParse(parts[2], out var count)) _world.Player?.GiveAmmo(parts[1], count);
                     break;
                 case "heal":
-                    if (_game.Player != null) _game.Player.Health = _game.Player.MaxHealth;
+                    _world.Player?.Heal();
                     break;
                 case "sleep":
-                    if (parts.Length > 1 && float.TryParse(parts[1], out var hours) && _game.DayNight != null)
-                    {
-                        _game.DayNight.Hour += hours;
-                        while (_game.DayNight.Hour >= 24f) { _game.DayNight.Hour -= 24f; _game.DayNight.Day++; }
-                    }
+                    if (parts.Length > 1 && float.TryParse(parts[1], out var hours)) _clock.Advance(hours);
                     break;
                 case "end":
                     End();
@@ -126,13 +134,13 @@ public sealed class DialogueSystem
             var parts = raw.Trim().Split(':');
             bool ok = parts[0] switch
             {
-                "mission_available" => parts.Length > 1 && _game.Missions.IsAvailable(parts[1]),
-                "mission_active" => parts.Length > 1 && _game.Missions.IsActive(parts[1]),
-                "mission_step" => parts.Length > 2 && _game.Missions.IsActive(parts[1]) && int.TryParse(parts[2], out var n) && _game.Missions.StepIndex == n,
-                "mission_done" => parts.Length > 1 && _game.Missions.IsDone(parts[1]),
-                "wanted" => _game.Wanted.Level > 0,
-                "not_wanted" => _game.Wanted.Level == 0,
-                "money" => parts.Length > 1 && int.TryParse(parts[1], out var p) && _game.Pence >= p,
+                "mission_available" => parts.Length > 1 && _missions.IsAvailable(parts[1]),
+                "mission_active" => parts.Length > 1 && _missions.IsActive(parts[1]),
+                "mission_step" => parts.Length > 2 && _missions.IsActive(parts[1]) && int.TryParse(parts[2], out var n) && _missions.StepIndex == n,
+                "mission_done" => parts.Length > 1 && _missions.IsDone(parts[1]),
+                "wanted" => _wanted.Level > 0,
+                "not_wanted" => _wanted.Level == 0,
+                "money" => parts.Length > 1 && int.TryParse(parts[1], out var p) && _economy.Pence >= p,
                 _ => true,
             };
             if (!ok) return false;
@@ -145,9 +153,7 @@ public sealed class DialogueSystem
         if (_data == null) return;
         _data = null;
         _npc = null;
-        _game.Main?.DialogueBox.Close();
-        _game.InputLocked = false;
-        if (_game.Main != null && !_game.Main.PauseMenu.IsOpen) Input.MouseMode = Input.MouseModeEnum.Captured;
+        _view.Close();
     }
 
     /// <summary>The box was closed from outside (Escape).</summary>

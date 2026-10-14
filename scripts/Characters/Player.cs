@@ -14,6 +14,11 @@ public partial class Player : CharacterBody3D, IPlayerView
 {
     public CameraRig Camera { get; set; } = null!;
     Vector3 IPlayerView.Position => GlobalPosition;
+    public void Heal() => Health = MaxHealth;
+    public void GiveAmmo(string weaponId, int count)
+    {
+        if (Weapons.TryGetValue(weaponId, out var weapon)) weapon.Reserve += count;
+    }
     public int Health { get; set; } = 100;
     public int MaxHealth { get; } = 100;
     public float Stamina { get; private set; } = 100f;

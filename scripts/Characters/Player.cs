@@ -10,9 +10,10 @@ namespace Veld.Characters;
 /// shooting with two weapons, interaction with anything that implements IInteractable, and riding
 /// (the body is parked on the horse's saddle and input is forwarded to the horse).
 /// </summary>
-public partial class Player : CharacterBody3D
+public partial class Player : CharacterBody3D, IPlayerView
 {
     public CameraRig Camera { get; set; } = null!;
+    Vector3 IPlayerView.Position => GlobalPosition;
     public int Health { get; set; } = 100;
     public int MaxHealth { get; } = 100;
     public float Stamina { get; private set; } = 100f;

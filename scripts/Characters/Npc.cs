@@ -10,7 +10,7 @@ namespace Veld.Characters;
 /// shoot back with the same Weapon class the player uses. Talkable NPCs implement IInteractable and
 /// open their dialogue from data/dialogue.json.
 /// </summary>
-public partial class Npc : CharacterBody3D, IInteractable
+public partial class Npc : CharacterBody3D, IInteractable, INpcView
 {
     public NpcData Data { get; set; } = new();
     public Faction Faction { get; private set; }
@@ -19,6 +19,12 @@ public partial class Npc : CharacterBody3D, IInteractable
     public Weapon? Weapon { get; private set; }
     /// <summary>Set when the player attacks this NPC (or its group); armed NPCs then fight regardless of faction.</summary>
     public bool Provoked { get; set; }
+
+    // the gameplay systems see this character through INpcView; explicit so Node.Name stays Godot's
+    string INpcView.Id => Data.Id;
+    string INpcView.Name => Data.Name;
+    string INpcView.Group => Data.Group;
+    Vector3 INpcView.Position => GlobalPosition;
 
     private enum State { Idle, Wander, Patrol, Chase, Attack, Flee, Dead }
     private State _state = State.Idle;

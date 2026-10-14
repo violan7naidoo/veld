@@ -13,7 +13,7 @@ namespace Veld.Core;
 /// Autoload singleton: the one place that knows about everything. Holds the player's money and
 /// reputation, the mission, dialogue and wanted systems, and saves/loads the game to user://save.json.
 /// </summary>
-public partial class Game : Node
+public partial class Game : Node, IEconomy, INotifier
 {
     public static Game Instance { get; private set; } = null!;
 
@@ -76,7 +76,7 @@ public partial class Game : Node
         Data = DataLoader.LoadAll();
         Factions.Modern = Data.World.IsModern;
         Pence = Data.World.StartMoney;
-        Missions = new MissionManager(this);
+        Missions = new MissionManager(Data, new LiveWorld(this), this, this);
         Dialogue = new DialogueSystem(this);
         Wanted = new WantedSystem(this);
         GD.Print($"Veld data: {Data.Towns.Count} towns, {Data.Npcs.Count} npcs, {Data.Missions.Count} missions, {Data.Weapons.Count} weapons");
@@ -111,11 +111,15 @@ public partial class Game : Node
         return true;
     }
 
+    void IEconomy.Add(int pence) => AddMoney(pence);
+
     public void Notify(string message)
     {
         GD.Print("[notify] " + message);
         Notified?.Invoke(message);
     }
+
+    public void Coins(Vector3 at) => Main?.Sfx.Coins(at);
 
     // ---------------------------------------------------------------- save / load
 

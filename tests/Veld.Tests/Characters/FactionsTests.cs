@@ -4,6 +4,7 @@ using Xunit;
 namespace Veld.Tests.Characters;
 
 /// <summary>One class for the same reason as MoneyTests: Factions.Modern is a static era flag.</summary>
+[Collection("era flags")]
 public class FactionsTests
 {
     [Theory]

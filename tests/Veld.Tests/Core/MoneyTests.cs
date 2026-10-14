@@ -7,6 +7,7 @@ namespace Veld.Tests.Core;
 /// Every Money test lives in this one class: the era is a static flag and xUnit runs classes in
 /// parallel, so two classes toggling it would race. Each test sets the flag it needs.
 /// </summary>
+[Collection("era flags")]
 public class MoneyTests
 {
     [Theory]

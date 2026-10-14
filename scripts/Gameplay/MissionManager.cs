@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using Godot;
-using Veld.Characters;
 using Veld.Core;
 
 namespace Veld.Gameplay;
@@ -12,23 +11,34 @@ namespace Veld.Gameplay;
 ///   talk        - the player finished a dialogue with Target (dialogue action talk_done)
 ///   return      - like talk, and completing it pays RewardPence
 /// Starting a mission spawns its Spawns (NPCs). The HUD reads ObjectiveText and MarkerPosition.
+/// Talks to the scene only through the ports it is given, so it runs the same against fakes.
 /// </summary>
 public sealed class MissionManager
 {
-    private readonly Game _game;
+    private readonly GameData _data;
+    private readonly IWorldQuery _world;
+    private readonly IEconomy _economy;
+    private readonly INotifier _notifier;
+
     public HashSet<string> Completed { get; } = new();
     public MissionData? Active { get; private set; }
     public int StepIndex { get; private set; }
     public MissionStep? CurrentStep => Active != null && StepIndex < Active.Steps.Count ? Active.Steps[StepIndex] : null;
 
-    public MissionManager(Game game) => _game = game;
+    public MissionManager(GameData data, IWorldQuery world, IEconomy economy, INotifier notifier)
+    {
+        _data = data;
+        _world = world;
+        _economy = economy;
+        _notifier = notifier;
+    }
 
     public bool IsDone(string id) => Completed.Contains(id);
     public bool IsActive(string id) => Active?.Id == id;
 
     public bool IsAvailable(string id)
     {
-        var m = _game.Data.Mission(id);
+        var m = _data.Mission(id);
         if (m == null || Active != null || Completed.Contains(id)) return false;
         foreach (var r in m.Requires) if (!Completed.Contains(r)) return false;
         return true;
@@ -37,27 +47,25 @@ public sealed class MissionManager
     public bool Start(string id)
     {
         if (!IsAvailable(id)) return false;
-        var m = _game.Data.Mission(id)!;
+        var m = _data.Mission(id)!;
         Active = m;
         StepIndex = 0;
         SpawnFor(m);
-        _game.Notify("New task: " + m.Title);
+        _notifier.Notify("New task: " + m.Title);
         return true;
     }
 
     private void SpawnFor(MissionData m)
     {
-        var world = _game.World;
-        if (world == null) return;
         foreach (var s in m.Spawns)
-            if (world.FindNpc(s.Id) == null) world.SpawnNpc(s);
+            if (_world.FindNpc(s.Id) == null) _world.SpawnNpc(s);
     }
 
     public void Restore(List<string> completed, string? activeId, int step)
     {
         Completed.Clear();
         foreach (var c in completed) Completed.Add(c);
-        Active = activeId != null ? _game.Data.Mission(activeId) : null;
+        Active = activeId != null ? _data.Mission(activeId) : null;
         StepIndex = Active == null ? 0 : Mathf.Clamp(step, 0, Active.Steps.Count - 1);
         if (Active != null) SpawnFor(Active);
     }
@@ -69,28 +77,24 @@ public sealed class MissionManager
         get
         {
             var step = CurrentStep;
-            var world = _game.World;
-            if (step == null || world == null) return null;
+            if (step == null) return null;
             switch (step.Type)
             {
-                case "goto": return world.Ground(DataLoader.XZ(step.Position));
+                case "goto": return _world.Ground(DataLoader.XZ(step.Position));
                 case "kill_group":
                 {
                     Vector3? best = null; float bestD = float.MaxValue;
-                    var p = _game.Player?.GlobalPosition ?? Vector3.Zero;
-                    foreach (var n in world.Group(step.Group))
+                    var p = _world.Player?.Position ?? Vector3.Zero;
+                    foreach (var n in _world.Group(step.Group))
                     {
                         if (n.IsDead) continue;
-                        float d = n.GlobalPosition.DistanceTo(p);
-                        if (d < bestD) { bestD = d; best = n.GlobalPosition; }
+                        float d = n.Position.DistanceTo(p);
+                        if (d < bestD) { bestD = d; best = n.Position; }
                     }
                     return best;
                 }
                 default:
-                {
-                    var npc = world.FindNpc(string.IsNullOrEmpty(step.Target) ? Active!.Giver : step.Target);
-                    return npc?.GlobalPosition;
-                }
+                    return _world.FindNpc(TargetOf(step))?.Position;
             }
         }
     }
@@ -98,21 +102,20 @@ public sealed class MissionManager
     public void Update(float dt)
     {
         var step = CurrentStep;
-        var player = _game.Player;
-        var world = _game.World;
-        if (step == null || player == null || world == null) return;
+        var player = _world.Player;
+        if (step == null || player == null) return;
         switch (step.Type)
         {
             case "goto":
             {
                 var p = DataLoader.XZ(step.Position);
-                if (new Vector2(player.GlobalPosition.X, player.GlobalPosition.Z).DistanceTo(p) <= step.Radius) Advance();
+                if (new Vector2(player.Position.X, player.Position.Z).DistanceTo(p) <= step.Radius) Advance();
                 break;
             }
             case "kill_group":
             {
                 bool any = false;
-                foreach (var n in world.Group(step.Group)) if (!n.IsDead) { any = true; break; }
+                foreach (var n in _world.Group(step.Group)) if (!n.IsDead) { any = true; break; }
                 if (!any) Advance();
                 break;
             }
@@ -124,20 +127,22 @@ public sealed class MissionManager
     {
         var step = CurrentStep;
         if (step == null) return;
-        string target = string.IsNullOrEmpty(step.Target) ? Active!.Giver : step.Target;
-        if ((step.Type == "talk" || step.Type == "return") && target == npcId) Advance();
+        if ((step.Type == "talk" || step.Type == "return") && TargetOf(step) == npcId) Advance();
     }
 
-    public void OnNpcKilled(Npc npc)
+    public void OnNpcKilled(INpcView npc)
     {
         // kill_group steps are polled in Update; this hook exists for custom reactions
-        if (CurrentStep?.Type == "kill_group" && npc.Data.Group == CurrentStep.Group)
+        if (CurrentStep?.Type == "kill_group" && npc.Group == CurrentStep.Group)
         {
             int left = 0;
-            foreach (var n in _game.World!.Group(CurrentStep.Group)) if (!n.IsDead) left++;
-            if (left > 0) _game.Notify($"{npc.Data.Name} is down. {left} left.");
+            foreach (var n in _world.Group(CurrentStep.Group)) if (!n.IsDead) left++;
+            if (left > 0) _notifier.Notify($"{npc.Name} is down. {left} left.");
         }
     }
+
+    /// <summary>A talk or return step without a target means the mission giver.</summary>
+    private string TargetOf(MissionStep step) => string.IsNullOrEmpty(step.Target) ? Active!.Giver : step.Target;
 
     private void Advance()
     {
@@ -148,7 +153,7 @@ public sealed class MissionManager
             Complete();
             return;
         }
-        _game.Notify(CurrentStep!.Objective);
+        _notifier.Notify(CurrentStep!.Objective);
     }
 
     private void Complete()
@@ -159,9 +164,9 @@ public sealed class MissionManager
         StepIndex = 0;
         if (m.RewardPence > 0)
         {
-            _game.AddMoney(m.RewardPence);
-            _game.Main?.Sfx.Coins(_game.Player?.GlobalPosition ?? Vector3.Zero);
+            _economy.Add(m.RewardPence);
+            _notifier.Coins(_world.Player?.Position ?? Vector3.Zero);
         }
-        _game.Notify($"Task complete: {m.Title}" + (m.RewardPence > 0 ? $" (+{Money.Format(m.RewardPence)})" : ""));
+        _notifier.Notify($"Task complete: {m.Title}" + (m.RewardPence > 0 ? $" (+{Money.Format(m.RewardPence)})" : ""));
     }
 }

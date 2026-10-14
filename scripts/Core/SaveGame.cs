@@ -34,16 +34,14 @@ public sealed class SaveGame
 
     private readonly Purse _purse;
     private readonly Reputation _reputation;
-    private readonly HashSet<string> _deadNpcs;
     private readonly MissionManager _missions;
     private readonly WantedSystem _wanted;
     private readonly INotifier _notifier;
 
-    public SaveGame(Purse purse, Reputation reputation, HashSet<string> deadNpcs, MissionManager missions, WantedSystem wanted, INotifier notifier)
+    public SaveGame(Purse purse, Reputation reputation, MissionManager missions, WantedSystem wanted, INotifier notifier)
     {
         _purse = purse;
         _reputation = reputation;
-        _deadNpcs = deadNpcs;
         _missions = missions;
         _wanted = wanted;
         _notifier = notifier;
@@ -64,7 +62,7 @@ public sealed class SaveGame
             PlayerPosition = new[] { player.GlobalPosition.X, player.GlobalPosition.Y, player.GlobalPosition.Z },
             Hour = Main.DayNight.Hour,
             Day = Main.DayNight.Day,
-            DeadNpcs = new List<string>(_deadNpcs),
+            DeadNpcs = new List<string>(Main.World.DeadNpcs),
             CompletedMissions = new List<string>(_missions.Completed),
             ActiveMission = _missions.Active?.Id,
             ActiveStep = _missions.StepIndex,
@@ -88,8 +86,8 @@ public sealed class SaveGame
         var player = Main.Player;
         _purse.Restore(s.Pence);
         _reputation.Restore(s.Reputation);
-        _deadNpcs.Clear();
-        foreach (var id in s.DeadNpcs) _deadNpcs.Add(id);
+        Main.World.DeadNpcs.Clear();
+        foreach (var id in s.DeadNpcs) Main.World.DeadNpcs.Add(id);
         Main.World.ApplyDeadNpcs();
         Main.DayNight.Hour = s.Hour;
         Main.DayNight.Day = s.Day;

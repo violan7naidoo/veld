@@ -31,19 +31,21 @@ public partial class Main : Node3D
         game.Bind(this);
 
         Sfx = new Sfx();
+        Sfx.Configure(game.Settings.Volume);
         AddChild(Sfx);
 
         DayNight = new DayNight { Name = "DayNight" };
-        DayNight.Configure(game.Data.World.StartHour, game.Data.World.DayLengthSeconds);
+        DayNight.Configure(game.Data.World.StartHour, game.Data.World.DayLengthSeconds, game.Settings.GraphicsQuality);
         AddChild(DayNight);
         Weather = new Weather { Name = "Weather" };
-        Weather.Configure(game.Data.World.Biome, game.Data.World.Seed);
+        Weather.Configure(game.Data.World.Biome, game.Data.World.Seed, DayNight, Sfx);
         AddChild(Weather);
         DayNight.Weather = Weather;
 
         World = new WorldBuilder { Name = "World" };
         AddChild(World);
         World.Build(game.Data);
+        DayNight.World = World;
         AddressIndex.Build(game.Data.World);
 
         Camera = new CameraRig { Name = "CameraRig" };

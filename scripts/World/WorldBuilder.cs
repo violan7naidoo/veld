@@ -17,6 +17,8 @@ public partial class WorldBuilder : Node3D
     public Vehicle? PlayerCar { get; private set; }
     public Horse? Horse { get; private set; }
     public List<Npc> Npcs { get; } = new();
+    /// <summary>Ids of characters who have died; respected on spawn and on load.</summary>
+    public HashSet<string> DeadNpcs { get; } = new();
     public Dictionary<string, TownData> Towns { get; } = new();
     public Dictionary<string, Vector3> TownCenters { get; } = new();
 
@@ -87,7 +89,7 @@ public partial class WorldBuilder : Node3D
 
         Terrain = new Terrain { Name = "Terrain" };
         AddChild(Terrain);
-        Terrain.Generate(world, data.Heightmap, flats, strips, areas, built);
+        Terrain.Generate(world, data.Heightmap, flats, strips, areas, built, data.MapFolder);
 
         foreach (var t in data.Towns)
         {
@@ -115,7 +117,7 @@ public partial class WorldBuilder : Node3D
             AddChild(Plates);
             var footprints = new FootprintBuilder { Name = "Buildings" };
             AddChild(footprints);
-            footprints.Build(world, Terrain, Plates);
+            footprints.Build(world, Terrain, data.MapFolder, Plates);
         }
         if (world.Areas.Count > 0 || world.Lines.Count > 0 || world.Pois.Count > 0)
         {
@@ -213,7 +215,7 @@ public partial class WorldBuilder : Node3D
         npc.Position = Resolve(data.Position, data.Town, data.Offset) + new Vector3(0, 1.0f, 0);
         AddChild(npc);
         Npcs.Add(npc);
-        if (Game.Instance.DeadNpcs.Contains(data.Id)) npc.MarkDeadSilently();
+        if (DeadNpcs.Contains(data.Id)) npc.MarkDeadSilently();
         return npc;
     }
 
@@ -227,6 +229,6 @@ public partial class WorldBuilder : Node3D
     public void ApplyDeadNpcs()
     {
         foreach (var n in Npcs)
-            if (Game.Instance.DeadNpcs.Contains(n.Data.Id) && !n.IsDead) n.MarkDeadSilently();
+            if (DeadNpcs.Contains(n.Data.Id) && !n.IsDead) n.MarkDeadSilently();
     }
 }

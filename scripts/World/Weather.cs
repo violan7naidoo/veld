@@ -1,5 +1,5 @@
 using Godot;
-using Veld.Core;
+using Veld.Audio;
 
 namespace Veld.World;
 
@@ -49,12 +49,17 @@ public partial class Weather : Node3D
     private readonly RandomNumberGenerator _rng = new();
     private GpuParticles3D _rain = null!;
     private bool _subtropical;
+    private DayNight _dayNight = null!;
+    private Sfx _sfx = null!;
 
-    public void Configure(string biome, int seed)
+    /// <summary>Call before adding to the tree; the clock sets the pace and the sound node hears the rain and thunder.</summary>
+    public void Configure(string biome, int seed, DayNight dayNight, Sfx sfx)
     {
         _subtropical = biome == "subtropical";
         _odds = _subtropical ? new[] { 0.3f, 0.3f, 0.15f, 0.18f, 0.07f } : new[] { 0.5f, 0.3f, 0.1f, 0.07f, 0.03f };
         _rng.Seed = (ulong)seed;
+        _dayNight = dayNight;
+        _sfx = sfx;
     }
 
     public override void _Ready()
@@ -87,8 +92,7 @@ public partial class Weather : Node3D
     {
         if (GetTree().Paused) return;
         float dt = (float)delta;
-        var dn = Game.Instance.DayNight;
-        float gameHours = dn == null ? dt / 30f : dt * 24f / dn.DayLengthSeconds;
+        float gameHours = dt * 24f / _dayNight.DayLengthSeconds;
 
         // pick the next weather every few game hours
         _hoursUntilChange -= gameHours;
@@ -117,7 +121,7 @@ public partial class Weather : Node3D
         if (cam != null) _rain.GlobalPosition = cam.GlobalPosition + new Vector3(0, 22f, 0) + (-cam.GlobalTransform.Basis.Z) * new Vector3(1, 0, 1) * 8f;
         _rain.AmountRatio = Rain;
         _rain.Emitting = Rain > 0.03f;
-        Game.Instance.Main?.Sfx.RainLevel(Rain);
+        _sfx.RainLevel(Rain);
 
         // thunder
         Flash = Mathf.Max(0f, Flash - dt * 9f);
@@ -135,7 +139,7 @@ public partial class Weather : Node3D
         if (_rumbleIn >= 0f)
         {
             _rumbleIn -= dt;
-            if (_rumbleIn < 0f) Game.Instance.Main?.Sfx.Thunder();
+            if (_rumbleIn < 0f) _sfx.Thunder();
         }
         if (_flashTimer > 0f) { _flashTimer -= dt; Flash = 1f; }
     }

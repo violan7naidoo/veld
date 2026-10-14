@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Godot;
-using Veld.Core;
 
 namespace Veld.Audio;
 
@@ -20,6 +19,10 @@ public partial class Sfx : Node
     private AudioStreamPlayer _rainPlayer = null!;
     private AudioStreamPlayer _thunderPlayer = null!;
     private float _lp;
+    private float _volume = 0.8f;
+
+    /// <summary>Call before adding to the tree; the volume is applied in _Ready once the audio server is up.</summary>
+    public void Configure(float volume) => _volume = volume;
 
     public override void _Ready()
     {
@@ -66,7 +69,7 @@ public partial class Sfx : Node
             AddChild(p);
             _pool.Add(p);
         }
-        ApplyVolume(Game.Instance.Volume);
+        ApplyVolume(_volume);
     }
 
     public static void ApplyVolume(float linear) => AudioServer.SetBusVolumeDb(0, Mathf.LinearToDb(Mathf.Clamp(linear, 0.0001f, 1f)));

@@ -50,8 +50,11 @@ public partial class Terrain : Node3D
         public AreaFill(List<Vector2> polygon, Surface kind, bool level, float blend) { Polygon = polygon; Kind = kind; Level = level; Blend = blend; }
     }
 
-    public void Generate(WorldData world, HeightmapData? heightmap, List<Flatten> flats, List<Strip> strips, List<AreaFill> areas, List<List<Vector2>> built)
+    private string _mapFolder = "";
+
+    public void Generate(WorldData world, HeightmapData? heightmap, List<Flatten> flats, List<Strip> strips, List<AreaFill> areas, List<List<Vector2>> built, string mapFolder)
     {
+        _mapFolder = mapFolder;
         Size = world.SizeMeters;
         CellSize = world.CellSize;
         _heightScale = world.HeightScale;
@@ -399,7 +402,7 @@ public partial class Terrain : Node3D
         material.SetShaderParameter("rock_normal", Tex.RockNormal());
         material.SetShaderParameter("macro_noise", Tex.Macro());
         if (_subtropical) material.SetShaderParameter("rock_slope_start", 0.3f);
-        ApplyOrtho(material, _world);
+        ApplyOrtho(material, _world, _mapFolder);
         var mi = new MeshInstance3D
         {
             Name = "TerrainMesh",
@@ -411,10 +414,10 @@ public partial class Terrain : Node3D
     }
 
     /// <summary>Drape the map's aerial photo (if any) over the ground.</summary>
-    private static void ApplyOrtho(ShaderMaterial material, WorldData world)
+    private static void ApplyOrtho(ShaderMaterial material, WorldData world, string mapFolder)
     {
         if (string.IsNullOrEmpty(world.Ortho) || !world.OrthoBounds.IsSet || world.OrthoMix <= 0f) return;
-        string path = world.Ortho.StartsWith("res://") ? world.Ortho : Game.Instance.Data.MapFolder + world.Ortho;
+        string path = world.Ortho.StartsWith("res://") ? world.Ortho : mapFolder + world.Ortho;
         var img = Image.LoadFromFile(ProjectSettings.GlobalizePath(path));
         if (img == null || img.IsEmpty()) { GD.PushWarning("aerial photo not found or unreadable: " + path); return; }
         img.GenerateMipmaps();

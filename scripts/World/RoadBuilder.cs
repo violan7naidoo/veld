@@ -38,9 +38,9 @@ public partial class RoadBuilder : Node3D
             bool foot = r.Kind is "footway" or "path" or "steps" or "cycleway" or "pedestrian";
             bool dirt = r.Kind is "track" || r.Surface is "ground" or "dirt" or "gravel" or "unpaved" or "compacted" or "sand";
             float lift = foot ? 0.05f : 0.07f;
-            if (foot) { nPaving += Ribbon(paving, pts, r.Width, lift, 2f, false); }
-            else if (dirt) { nGravel += Ribbon(gravel, pts, r.Width, lift, 4f, false); }
-            else { nTar += Ribbon(tar, pts, r.Width, lift, 6f, true); }
+            if (foot) { nPaving += Ribbon(paving, pts, r.Width, lift, 2f, false, null, _terrain); }
+            else if (dirt) { nGravel += Ribbon(gravel, pts, r.Width, lift, 4f, false, null, _terrain); }
+            else { nTar += Ribbon(tar, pts, r.Width, lift, 6f, true, null, _terrain); }
 
             bool street = r.Kind is "residential" or "tertiary" or "tertiary_link" or "unclassified" or "secondary" or "primary" or "living_street";
             if (street)
@@ -111,6 +111,7 @@ public partial class RoadBuilder : Node3D
     /// <summary>
     /// A strip of quads of the given width along the polyline, following the ground. UV u runs across
     /// the width (0..1), v along the length in units of `vMetres`. Returns the number of triangles added.
+    /// Pass a height function or a terrain; the one you give is used.
     /// </summary>
     public static int Ribbon(SurfaceTool st, List<Vector2> pts, float width, float lift, float vMetres, bool markings, Func<float, float, float>? height = null, Terrain? terrain = null, float offset = 0f)
     {
@@ -124,7 +125,7 @@ public partial class RoadBuilder : Node3D
             for (int k = 1; k <= n; k++) dense.Add(a.Lerp(b, k / (float)n));
         }
         if (dense.Count < 2) return 0;
-        float H(Vector2 p) => height != null ? height(p.X, p.Y) : (terrain ?? Game.Instance.World!.Terrain).GetHeight(p.X, p.Y);
+        float H(Vector2 p) => height != null ? height(p.X, p.Y) : terrain!.GetHeight(p.X, p.Y);
 
         float hw = width / 2f;
         var left = new Vector3[dense.Count];

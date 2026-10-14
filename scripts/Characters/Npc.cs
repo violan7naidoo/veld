@@ -146,7 +146,7 @@ public partial class Npc : CharacterBody3D, IInteractable, INpcView
         CollisionLayer = 0;
         CollisionMask = Layers.Terrain;
         Velocity = Vector3.Zero;
-        Game.Instance.DeadNpcs.Add(Data.Id);
+        Game.Instance.World!.DeadNpcs.Add(Data.Id);
         Game.Instance.Missions.OnNpcKilled(this);
     }
 

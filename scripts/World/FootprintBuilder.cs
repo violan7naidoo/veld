@@ -35,9 +35,12 @@ public partial class FootprintBuilder : Node3D
         private static SurfaceTool New() { var st = new SurfaceTool(); st.Begin(Mesh.PrimitiveType.Triangles); return st; }
     }
 
-    public void Build(WorldData world, Terrain terrain, AddressPlates? plates = null)
+    private string _mapFolder = "";
+
+    public void Build(WorldData world, Terrain terrain, string mapFolder, AddressPlates? plates = null)
     {
         _terrain = terrain;
+        _mapFolder = mapFolder;
         _plates = plates;
         ModelsPlaced = 0; FacadesPlaced = 0;
         IndexRoads(world);
@@ -305,7 +308,7 @@ public partial class FootprintBuilder : Node3D
         return best;
     }
 
-    private string MapPath(string file) => file.StartsWith("res://") ? file : Game.Instance.Data.MapFolder + file;
+    private string MapPath(string file) => file.StartsWith("res://") ? file : _mapFolder + file;
 
     /// <summary>The street-facing wall as its own mesh with a photo of the real house front.</summary>
     private void Facade(FootprintData b, Vector2 a, Vector2 bb, float baseY, float topY, Vector3 outward, List<Vector3> faces)

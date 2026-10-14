@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using Godot;
 using Veld.Characters;
 using Veld.Gameplay;
@@ -23,7 +22,6 @@ public partial class Game : Node
     public Settings Settings { get; } = new();
     public UiState Ui { get; } = new();
     public SaveGame SaveGame { get; private set; } = null!;
-    public HashSet<string> DeadNpcs { get; } = new();
 
     public MissionManager Missions { get; private set; } = null!;
     public DialogueSystem Dialogue { get; private set; } = null!;
@@ -47,7 +45,7 @@ public partial class Game : Node
         Missions = new MissionManager(Data, world, Purse, Notifier);
         Wanted = new WantedSystem(world, Notifier);
         Dialogue = new DialogueSystem(Data, Missions, Wanted, world, Purse, Notifier, new LiveClock(this), new LiveDialogueView(this));
-        SaveGame = new SaveGame(Purse, Reputation, DeadNpcs, Missions, Wanted, Notifier);
+        SaveGame = new SaveGame(Purse, Reputation, Missions, Wanted, Notifier);
         Notifier.CoinsDropped += at => Main?.Sfx.Coins(at);
         GD.Print($"Veld data: {Data.Towns.Count} towns, {Data.Npcs.Count} npcs, {Data.Missions.Count} missions, {Data.Weapons.Count} weapons");
     }
@@ -79,7 +77,6 @@ public partial class Game : Node
     public void Notify(string message) => Notifier.Notify(message);
     public float MouseSensitivity { get => Settings.MouseSensitivity; set => Settings.MouseSensitivity = value; }
     public bool InvertY { get => Settings.InvertY; set => Settings.InvertY = value; }
-    public float Volume { get => Settings.Volume; set => Settings.Volume = value; }
     public Quality GraphicsQuality { get => Settings.GraphicsQuality; set => Settings.GraphicsQuality = value; }
     public bool InputLocked { get => Ui.InputLocked; set => Ui.InputLocked = value; }
     public const string SavePath = SaveGame.Path;

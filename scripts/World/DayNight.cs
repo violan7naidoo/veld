@@ -27,6 +27,8 @@ public partial class DayNight : Node3D, IClock
     /// <summary>0 in full daylight, 1 at night.</summary>
     public float NightFactor { get; private set; }
     public Weather? Weather { get; set; }
+    /// <summary>Set by Main once the world is built; the ground and grass shaders read the weather through it.</summary>
+    public WorldBuilder? World { get; set; }
     /// <summary>Desaturated slow-motion look while Dead Eye is active.</summary>
     public bool DeadEye { get; set; }
 
@@ -59,10 +61,11 @@ public partial class DayNight : Node3D, IClock
         mat.EmissionEnergyMultiplier = 0f;
     }
 
-    public void Configure(float startHour, float dayLength)
+    public void Configure(float startHour, float dayLength, Quality quality)
     {
         Hour = startHour;
         DayLengthSeconds = dayLength;
+        Quality = quality;
     }
 
     public string TimeText => $"{(int)Hour:00}:{(int)((Hour % 1f) * 60f):00}";
@@ -160,7 +163,7 @@ public partial class DayNight : Node3D, IClock
         };
         AddChild(_moonDisc);
 
-        ApplyQuality(Game.Instance.GraphicsQuality);
+        ApplyQuality(Quality);
         Apply();
     }
 
@@ -244,10 +247,10 @@ public partial class DayNight : Node3D, IClock
         _starMat.AlbedoColor = new Color(1, 1, 1, NightFactor * 0.95f);
         _moonDisc.Visible = NightFactor > 0.02f && _moon.GlobalTransform.Basis.Z.Y > 0.02f;
 
-        if (Game.Instance.World != null)
+        if (World != null)
         {
-            if (Game.Instance.World.Terrain.GetNodeOrNull<MeshInstance3D>("TerrainMesh")?.MaterialOverride is ShaderMaterial tm) tm.SetShaderParameter("wetness", Weather?.Wetness ?? 0f);
-            Game.Instance.World.Vegetation?.GrassMaterial?.SetShaderParameter("wind_strength", 0.14f * (Weather?.Wind ?? 0.8f));
+            if (World.Terrain.GetNodeOrNull<MeshInstance3D>("TerrainMesh")?.MaterialOverride is ShaderMaterial tm) tm.SetShaderParameter("wetness", Weather?.Wetness ?? 0f);
+            World.Vegetation?.GrassMaterial?.SetShaderParameter("wind_strength", 0.14f * (Weather?.Wind ?? 0.8f));
         }
 
         foreach (var (light, energy) in _nightLights)

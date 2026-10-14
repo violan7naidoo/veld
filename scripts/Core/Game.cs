@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using Godot;
 using Veld.Characters;
@@ -77,16 +76,12 @@ public partial class Game : Node
     public int Pence => Purse.Pence;
     public void AddMoney(int pence) => Purse.Add(pence);
     public bool TrySpend(int pence) => Purse.TrySpend(pence);
-    public event Action<int>? MoneyChanged { add => Purse.Changed += value; remove => Purse.Changed -= value; }
     public void Notify(string message) => Notifier.Notify(message);
-    public event Action<string>? Notified { add => Notifier.Notified += value; remove => Notifier.Notified -= value; }
     public float MouseSensitivity { get => Settings.MouseSensitivity; set => Settings.MouseSensitivity = value; }
     public bool InvertY { get => Settings.InvertY; set => Settings.InvertY = value; }
     public float Volume { get => Settings.Volume; set => Settings.Volume = value; }
     public Quality GraphicsQuality { get => Settings.GraphicsQuality; set => Settings.GraphicsQuality = value; }
-    public void SaveSettings() => Settings.Save();
     public bool InputLocked { get => Ui.InputLocked; set => Ui.InputLocked = value; }
-    public Vector3? Waypoint { get => Ui.Waypoint; set => Ui.Waypoint = value; }
     public const string SavePath = SaveGame.Path;
     public bool HasSave => SaveGame.HasSave;
     public void Save() => SaveGame.Save();

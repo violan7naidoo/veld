@@ -1,6 +1,7 @@
 using Godot;
 using Veld.Characters;
 using Veld.Core;
+using Veld.Gameplay;
 using Veld.World;
 
 namespace Veld.UI;
@@ -16,6 +17,22 @@ public partial class Minimap : Control
 
     private static readonly Color Frame = new(0.95f, 0.9f, 0.78f);
 
+    private Main _main = null!;
+    private GameData _data = null!;
+    private UiState _ui = null!;
+    private MissionManager _missions = null!;
+    private WantedSystem _wanted = null!;
+
+    /// <summary>Call before adding to the tree; Hud does this when it builds the minimap.</summary>
+    public void Init(Main main, GameData data, UiState ui, MissionManager missions, WantedSystem wanted)
+    {
+        _main = main;
+        _data = data;
+        _ui = ui;
+        _missions = missions;
+        _wanted = wanted;
+    }
+
     public override void _Ready()
     {
         ClipContents = true;
@@ -26,11 +43,10 @@ public partial class Minimap : Control
 
     public override void _Draw()
     {
-        var game = Game.Instance;
-        var player = game.Player;
+        var player = _main.Player;
         var tex = MapImage.Texture;
         DrawRect(new Rect2(Vector2.Zero, Size), new Color(0.08f, 0.07f, 0.06f, 0.85f));
-        if (player == null || tex == null) return;
+        if (tex == null) return;
 
         var centre = Size / 2f;
         float screenPxPerM = (Size.X / 2f) / ViewRadius;
@@ -50,23 +66,22 @@ public partial class Minimap : Control
 
         // markers, in metres relative to the player, same rotation
         DrawSetTransform(centre, yaw, Vector2.One * screenPxPerM);
-        var marker = game.Missions.MarkerPosition;
+        var marker = _missions.MarkerPosition;
         if (marker.HasValue) Diamond(Rel(marker.Value, pxz), 5f / screenPxPerM, new Color(1f, 0.85f, 0.3f));
-        if (game.Waypoint.HasValue) Diamond(Rel(game.Waypoint.Value, pxz), 5f / screenPxPerM, new Color(0.4f, 0.85f, 1f));
-        var horse = game.World?.Horse;
+        if (_ui.Waypoint.HasValue) Diamond(Rel(_ui.Waypoint.Value, pxz), 5f / screenPxPerM, new Color(0.4f, 0.85f, 1f));
+        var horse = _main.World.Horse;
         if (horse != null && !player.IsMounted) DrawCircle(Rel(horse.GlobalPosition, pxz), 3.5f / screenPxPerM, new Color(0.95f, 0.95f, 1f));
-        var car = game.World?.PlayerCar;
+        var car = _main.World.PlayerCar;
         if (car != null && player.Driving != car) DrawRect(new Rect2(Rel(car.GlobalPosition, pxz) - Vector2.One * 3f / screenPxPerM, Vector2.One * 6f / screenPxPerM), new Color(0.95f, 0.95f, 1f));
-        if (game.World != null)
-            foreach (var n in game.World.Npcs)
-            {
-                if (n.IsDead) continue;
-                var rel = Rel(n.GlobalPosition, pxz);
-                if (rel.Length() > ViewRadius * 1.4f) continue;
-                if (n.Faction == Faction.British && game.Wanted.Level > 0) DrawCircle(rel, 3.5f / screenPxPerM, new Color(0.3f, 0.5f, 1f));
-                else if (GivesMission(game, n)) DrawCircle(rel, 4f / screenPxPerM, new Color(1f, 0.85f, 0.3f));
-                else if (n.IsHostileTo(player)) DrawCircle(rel, 3f / screenPxPerM, new Color(1f, 0.25f, 0.2f));
-            }
+        foreach (var n in _main.World.Npcs)
+        {
+            if (n.IsDead) continue;
+            var rel = Rel(n.GlobalPosition, pxz);
+            if (rel.Length() > ViewRadius * 1.4f) continue;
+            if (n.Faction == Faction.British && _wanted.Level > 0) DrawCircle(rel, 3.5f / screenPxPerM, new Color(0.3f, 0.5f, 1f));
+            else if (GivesMission(_data, _missions, n)) DrawCircle(rel, 4f / screenPxPerM, new Color(1f, 0.85f, 0.3f));
+            else if (n.IsHostileTo(player)) DrawCircle(rel, 3f / screenPxPerM, new Color(1f, 0.25f, 0.2f));
+        }
 
         // player arrow and north marker (screen space)
         DrawSetTransform(Vector2.Zero);
@@ -85,10 +100,10 @@ public partial class Minimap : Control
         DrawColoredPolygon(pts, c);
     }
 
-    public static bool GivesMission(Game game, Npc n)
+    public static bool GivesMission(GameData data, MissionManager missions, Npc n)
     {
-        foreach (var m in game.Data.Missions)
-            if (m.Giver == n.Data.Id && game.Missions.IsAvailable(m.Id)) return true;
+        foreach (var m in data.Missions)
+            if (m.Giver == n.Data.Id && missions.IsAvailable(m.Id)) return true;
         return false;
     }
 }

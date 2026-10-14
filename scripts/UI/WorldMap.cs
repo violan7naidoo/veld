@@ -1,6 +1,7 @@
 using Godot;
 using Veld.Characters;
 using Veld.Core;
+using Veld.Gameplay;
 using Veld.World;
 
 namespace Veld.UI;
@@ -21,8 +22,27 @@ public partial class WorldMap : Control
     private bool _moved;
     private Label _title = null!;
     private LineEdit _search = null!;
+    private Main _main = null!;
+    private GameData _data = null!;
+    private Notifier _notifier = null!;
+    private UiState _ui = null!;
+    private MissionManager _missions = null!;
+    private WantedSystem _wanted = null!;
+    private DialogueSystem _dialogue = null!;
 
     private static readonly Color Parchment = new(0.95f, 0.9f, 0.78f);
+
+    /// <summary>Call before adding to the tree.</summary>
+    public void Init(Main main, GameData data, Notifier notifier, UiState ui, MissionManager missions, WantedSystem wanted, DialogueSystem dialogue)
+    {
+        _main = main;
+        _data = data;
+        _notifier = notifier;
+        _ui = ui;
+        _missions = missions;
+        _wanted = wanted;
+        _dialogue = dialogue;
+    }
 
     public override void _Ready()
     {
@@ -47,35 +67,34 @@ public partial class WorldMap : Control
 
     private void Search(string text)
     {
-        var game = Game.Instance;
         var entry = AddressIndex.Find(text);
-        if (entry == null || game.World == null)
+        if (entry == null)
         {
-            game.Notify(text.Trim() == "" ? "Type a house number and street, e.g. 42 Road 721." : $"No address matches \"{text.Trim()}\".");
+            _notifier.Notify(text.Trim() == "" ? "Type a house number and street, e.g. 42 Road 721." : $"No address matches \"{text.Trim()}\".");
             return;
         }
-        game.Waypoint = game.World.Ground(entry.Centre);
+        _ui.Waypoint = _main.World.Ground(entry.Centre);
         _centre = MapImage.ToPx(entry.Centre);
         _zoom = Mathf.Max(_zoom, 4f);
-        game.Notify($"Waypoint set: {entry.Building.Address}, {entry.Building.Suburb}.");
+        _notifier.Notify($"Waypoint set: {entry.Building.Address}, {entry.Building.Suburb}.");
         _search.ReleaseFocus();
         QueueRedraw();
     }
 
     public void Toggle()
     {
-        if (!Visible && Game.Instance.Player != null)
+        if (!Visible)
         {
-            var p = Game.Instance.Player.GlobalPosition;
+            var p = _main.Player.GlobalPosition;
             _centre = MapImage.ToPx(new Vector2(p.X, p.Z));
             float fit = Mathf.Min(Size.X, Size.Y) / MapImage.Size;
             _zoom = Mathf.Max(fit, Mathf.Clamp(_zoom, fit, 8f));
         }
         Visible = !Visible;
         if (!Visible) _search.ReleaseFocus();
-        GetTree().Paused = Visible || Game.Instance.Main!.PauseMenu.IsOpen;
-        Game.Instance.InputLocked = Visible || Game.Instance.Main!.PauseMenu.IsOpen || Game.Instance.Dialogue.IsActive;
-        Input.MouseMode = Game.Instance.InputLocked ? Input.MouseModeEnum.Visible : Input.MouseModeEnum.Captured;
+        GetTree().Paused = Visible || _main.PauseMenu.IsOpen;
+        _ui.InputLocked = Visible || _main.PauseMenu.IsOpen || _dialogue.IsActive;
+        Input.MouseMode = _ui.InputLocked ? Input.MouseModeEnum.Visible : Input.MouseModeEnum.Captured;
         QueueRedraw();
     }
 
@@ -95,17 +114,17 @@ public partial class WorldMap : Control
                     if (!_moved)
                     {
                         var world = MapImage.ToWorld(ScreenToTex(mb.Position));
-                        if (Game.Instance.World != null && Game.Instance.World.Terrain.InBounds(world.X, world.Y, 0f))
+                        if (_main.World.Terrain.InBounds(world.X, world.Y, 0f))
                         {
-                            Game.Instance.Waypoint = Game.Instance.World.Ground(world);
-                            Game.Instance.Notify("Waypoint set.");
+                            _ui.Waypoint = _main.World.Ground(world);
+                            _notifier.Notify("Waypoint set.");
                         }
                     }
                 }
             }
             else if (mb.ButtonIndex == MouseButton.Right && mb.Pressed)
             {
-                Game.Instance.Waypoint = null;
+                _ui.Waypoint = null;
             }
             AcceptEvent();
             QueueRedraw();
@@ -134,7 +153,6 @@ public partial class WorldMap : Control
 
     public override void _Draw()
     {
-        var game = Game.Instance;
         var tex = MapImage.Texture;
         DrawRect(new Rect2(Vector2.Zero, Size), new Color(0.07f, 0.06f, 0.05f, 0.97f));
         if (tex == null) return;
@@ -172,29 +190,26 @@ public partial class WorldMap : Control
         }
 
         // markers
-        var player = game.Player;
-        if (game.World != null && player != null)
+        var player = _main.Player;
+        foreach (var n in _main.World.Npcs)
         {
-            foreach (var n in game.World.Npcs)
-            {
-                if (n.IsDead) continue;
-                var s = WorldToScreen(new Vector2(n.GlobalPosition.X, n.GlobalPosition.Z));
-                if (n.Faction == Faction.British && game.Wanted.Level > 0) DrawCircle(s, 5f, new Color(0.3f, 0.5f, 1f));
-                else if (Minimap.GivesMission(game, n)) { DrawCircle(s, 7f, new Color(1f, 0.85f, 0.3f)); DrawString(font, s + new Vector2(-3, 5), "!", HorizontalAlignment.Left, -1, 13, Colors.Black); }
-            }
-            var horse = game.World.Horse;
-            if (horse != null && !player.IsMounted) { var s = WorldToScreen(new Vector2(horse.GlobalPosition.X, horse.GlobalPosition.Z)); DrawCircle(s, 5f, Colors.White); DrawString(font, s + new Vector2(8, 5), game.Data.World.HorseName, HorizontalAlignment.Left, -1, 13, Colors.White); }
-            var car = game.World.PlayerCar;
-            if (car != null && player.Driving != car) { var s = WorldToScreen(new Vector2(car.GlobalPosition.X, car.GlobalPosition.Z)); DrawRect(new Rect2(s - Vector2.One * 5f, Vector2.One * 10f), Colors.White); DrawString(font, s + new Vector2(8, 5), "Your car", HorizontalAlignment.Left, -1, 13, Colors.White); }
-            var marker = game.Missions.MarkerPosition;
-            if (marker.HasValue) Diamond(WorldToScreen(new Vector2(marker.Value.X, marker.Value.Z)), 9f, new Color(1f, 0.85f, 0.3f));
-            if (game.Waypoint.HasValue) Diamond(WorldToScreen(new Vector2(game.Waypoint.Value.X, game.Waypoint.Value.Z)), 9f, new Color(0.4f, 0.85f, 1f));
-            var ps = WorldToScreen(new Vector2(player.GlobalPosition.X, player.GlobalPosition.Z));
-            float yaw = player.Camera.Yaw;
-            Vector2[] arrow = { ps + new Vector2(0, -11).Rotated(yaw), ps + new Vector2(7, 8).Rotated(yaw), ps + new Vector2(0, 4).Rotated(yaw), ps + new Vector2(-7, 8).Rotated(yaw) };
-            DrawColoredPolygon(arrow, Colors.White);
-            DrawPolyline(new[] { arrow[0], arrow[1], arrow[2], arrow[3], arrow[0] }, Colors.Black, 1.5f);
+            if (n.IsDead) continue;
+            var s = WorldToScreen(new Vector2(n.GlobalPosition.X, n.GlobalPosition.Z));
+            if (n.Faction == Faction.British && _wanted.Level > 0) DrawCircle(s, 5f, new Color(0.3f, 0.5f, 1f));
+            else if (Minimap.GivesMission(_data, _missions, n)) { DrawCircle(s, 7f, new Color(1f, 0.85f, 0.3f)); DrawString(font, s + new Vector2(-3, 5), "!", HorizontalAlignment.Left, -1, 13, Colors.Black); }
         }
+        var horse = _main.World.Horse;
+        if (horse != null && !player.IsMounted) { var s = WorldToScreen(new Vector2(horse.GlobalPosition.X, horse.GlobalPosition.Z)); DrawCircle(s, 5f, Colors.White); DrawString(font, s + new Vector2(8, 5), _data.World.HorseName, HorizontalAlignment.Left, -1, 13, Colors.White); }
+        var car = _main.World.PlayerCar;
+        if (car != null && player.Driving != car) { var s = WorldToScreen(new Vector2(car.GlobalPosition.X, car.GlobalPosition.Z)); DrawRect(new Rect2(s - Vector2.One * 5f, Vector2.One * 10f), Colors.White); DrawString(font, s + new Vector2(8, 5), "Your car", HorizontalAlignment.Left, -1, 13, Colors.White); }
+        var marker = _missions.MarkerPosition;
+        if (marker.HasValue) Diamond(WorldToScreen(new Vector2(marker.Value.X, marker.Value.Z)), 9f, new Color(1f, 0.85f, 0.3f));
+        if (_ui.Waypoint.HasValue) Diamond(WorldToScreen(new Vector2(_ui.Waypoint.Value.X, _ui.Waypoint.Value.Z)), 9f, new Color(0.4f, 0.85f, 1f));
+        var ps = WorldToScreen(new Vector2(player.GlobalPosition.X, player.GlobalPosition.Z));
+        float yaw = player.Camera.Yaw;
+        Vector2[] arrow = { ps + new Vector2(0, -11).Rotated(yaw), ps + new Vector2(7, 8).Rotated(yaw), ps + new Vector2(0, 4).Rotated(yaw), ps + new Vector2(-7, 8).Rotated(yaw) };
+        DrawColoredPolygon(arrow, Colors.White);
+        DrawPolyline(new[] { arrow[0], arrow[1], arrow[2], arrow[3], arrow[0] }, Colors.Black, 1.5f);
 
         // scale bar
         float barMetres = mPerScreenPx > 4f ? 500f : mPerScreenPx > 1.5f ? 200f : mPerScreenPx > 0.6f ? 100f : 50f;
@@ -203,8 +218,8 @@ public partial class WorldMap : Control
         DrawLine(b0, b0 + new Vector2(barPx, 0), Parchment, 3f);
         DrawString(font, b0 + new Vector2(0, -6), $"{barMetres:0} m", HorizontalAlignment.Left, -1, 13, Parchment);
 
-        _title.Text = $"{game.Data.World.Name}\nM or Esc to close  ·  scroll to zoom  ·  drag to pan  ·  click to set a waypoint, right-click to clear"
-                      + (player != null ? $"\nYou are at: {MapImage.LocationName(game.Data, new Vector2(player.GlobalPosition.X, player.GlobalPosition.Z))}" : "");
+        _title.Text = $"{_data.World.Name}\nM or Esc to close  ·  scroll to zoom  ·  drag to pan  ·  click to set a waypoint, right-click to clear"
+                      + $"\nYou are at: {MapImage.LocationName(_data, new Vector2(player.GlobalPosition.X, player.GlobalPosition.Z))}";
     }
 
     private void Diamond(Vector2 at, float r, Color c)

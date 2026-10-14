@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Godot;
-using Veld.Core;
+using Veld.Gameplay;
 
 namespace Veld.UI;
 
@@ -12,8 +12,12 @@ public partial class DialogueBox : Control
     private Label _speaker = null!, _text = null!;
     private VBoxContainer _choices = null!;
     private Action<int>? _onChoose;
+    private DialogueSystem _dialogue = null!;
 
     public bool IsOpen => Visible;
+
+    /// <summary>Call before adding to the tree.</summary>
+    public void Init(DialogueSystem dialogue) => _dialogue = dialogue;
 
     public override void _Ready()
     {
@@ -86,6 +90,6 @@ public partial class DialogueBox : Control
         if (!Visible) return;
         Visible = false;
         _onChoose = null;
-        Game.Instance.Dialogue.OnBoxClosed();
+        _dialogue.OnBoxClosed();
     }
 }

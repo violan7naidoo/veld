@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Godot;
 using Veld.Core;
+using Veld.Gameplay;
 using Veld.World;
 
 namespace Veld.UI;
@@ -24,9 +25,28 @@ public partial class Hud : Control
     private VBoxContainer _toasts = null!;
     private readonly List<(Label label, float life)> _live = new();
     private float _damageFlash;
+    private Main _main = null!;
+    private GameData _data = null!;
+    private Purse _purse = null!;
+    private Notifier _notifier = null!;
+    private UiState _ui = null!;
+    private MissionManager _missions = null!;
+    private WantedSystem _wantedSystem = null!;
 
     private static readonly Color Parchment = new(0.95f, 0.9f, 0.78f);
     private static readonly Color Ink = new(0.08f, 0.06f, 0.04f, 0.65f);
+
+    /// <summary>Call before adding to the tree.</summary>
+    public void Init(Main main, GameData data, Purse purse, Notifier notifier, UiState ui, MissionManager missions, WantedSystem wanted)
+    {
+        _main = main;
+        _data = data;
+        _purse = purse;
+        _notifier = notifier;
+        _ui = ui;
+        _missions = missions;
+        _wantedSystem = wanted;
+    }
 
     public override void _Ready()
     {
@@ -55,6 +75,7 @@ public partial class Hud : Control
 
         // bottom-left: minimap with the location name above it
         _minimap = new Minimap { Name = "Minimap" };
+        _minimap.Init(_main, _data, _ui, _missions, _wantedSystem);
         _minimap.SetAnchorsPreset(LayoutPreset.BottomLeft);
         _minimap.AnchorTop = 1; _minimap.AnchorBottom = 1;
         _minimap.OffsetLeft = 24; _minimap.OffsetRight = 254; _minimap.OffsetTop = -254; _minimap.OffsetBottom = -24;
@@ -121,14 +142,12 @@ public partial class Hud : Control
         _toasts.OffsetLeft = -560; _toasts.OffsetRight = -24; _toasts.OffsetTop = -300; _toasts.OffsetBottom = -24;
         AddChild(_toasts);
 
-        var game = Game.Instance;
-        game.Notified += Toast;
-        game.MoneyChanged += _ => { };
+        _notifier.Notified += Toast;
     }
 
     public override void _ExitTree()
     {
-        Game.Instance.Notified -= Toast;
+        _notifier.Notified -= Toast;
     }
 
     private static Label MakeLabel(int size, Color color)
@@ -177,9 +196,7 @@ public partial class Hud : Control
     public override void _Process(double delta)
     {
         float dt = (float)delta;
-        var game = Game.Instance;
-        var player = game.Player;
-        if (player == null) return;
+        var player = _main.Player;
 
         _health.Value = player.Health;
         _stamina.Value = player.IsMounted ? player.Mounted!.Stamina : player.Stamina;
@@ -188,7 +205,7 @@ public partial class Hud : Control
         if (_locTimer > 0.5f)
         {
             _locTimer = 0f;
-            _location.Text = MapImage.LocationName(game.Data, new Vector2(player.GlobalPosition.X, player.GlobalPosition.Z));
+            _location.Text = MapImage.LocationName(_data, new Vector2(player.GlobalPosition.X, player.GlobalPosition.Z));
         }
         var w = player.CurrentWeapon;
         if (player.Driving != null)
@@ -201,11 +218,11 @@ public partial class Hud : Control
             _weapon.Text = w == null ? "Unarmed  (1/2 to draw)" : w.Data.Name;
             _ammo.Text = w == null ? "" : w.Reloading ? "reloading…" : $"{w.InMag} / {w.Reserve}";
         }
-        _money.Text = Money.Format(game.Pence);
-        var dn = game.DayNight;
-        _clock.Text = dn == null ? "" : $"Day {dn.Day}, {dn.TimeText}  —  " + (game.Data.World.IsModern ? "today" : "April 1901") + (game.Main?.Weather != null ? "  ·  " + game.Main.Weather.Describe() : "");
-        _wanted.Text = game.Wanted.Label;
-        _objective.Text = game.Missions.ObjectiveText;
+        _money.Text = Money.Format(_purse.Pence);
+        var dn = _main.DayNight;
+        _clock.Text = $"Day {dn.Day}, {dn.TimeText}  —  " + (_data.World.IsModern ? "today" : "April 1901") + "  ·  " + _main.Weather.Describe();
+        _wanted.Text = _wantedSystem.Label;
+        _objective.Text = _missions.ObjectiveText;
         _crosshair.Visible = player.Aiming;
 
         // compass: 360 degrees across 2 widths of the strip, centred on the camera yaw
@@ -220,7 +237,7 @@ public partial class Hud : Control
         }
         // yaw 0 looks down -Z which we call north
         Place(_compassN, 0f); Place(_compassE, -Mathf.Pi / 2); Place(_compassS, Mathf.Pi); Place(_compassW, Mathf.Pi / 2);
-        var marker = game.Missions.MarkerPosition;
+        var marker = _missions.MarkerPosition;
         if (marker.HasValue)
         {
             var d = marker.Value - player.GlobalPosition;
@@ -228,15 +245,15 @@ public partial class Hud : Control
             _markObjective.Text = $"◆ {d.Length():0}m";
         }
         else _markObjective.Visible = false;
-        if (game.Waypoint.HasValue)
+        if (_ui.Waypoint.HasValue)
         {
-            var d = game.Waypoint.Value - player.GlobalPosition;
+            var d = _ui.Waypoint.Value - player.GlobalPosition;
             Place(_markWaypoint, Mathf.Atan2(-d.X, -d.Z));
             _markWaypoint.Text = $"◆ {d.Length():0}m";
-            if (d.Length() < 12f) { game.Waypoint = null; game.Notify("You have reached your waypoint."); }
+            if (d.Length() < 12f) { _ui.Waypoint = null; _notifier.Notify("You have reached your waypoint."); }
         }
         else _markWaypoint.Visible = false;
-        var horse = game.World?.Horse;
+        var horse = _main.World.Horse;
         if (horse != null && !player.IsMounted)
         {
             var d = horse.GlobalPosition - player.GlobalPosition;

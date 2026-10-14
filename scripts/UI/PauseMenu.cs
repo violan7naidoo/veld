@@ -1,6 +1,7 @@
 using Godot;
 using Veld.Audio;
 using Veld.Core;
+using Veld.Gameplay;
 using Veld.World;
 
 namespace Veld.UI;
@@ -11,6 +12,23 @@ public partial class PauseMenu : Control
     public bool IsOpen => Visible;
     private Button _load = null!;
     private Label _status = null!;
+    private Main _main = null!;
+    private GameData _data = null!;
+    private Settings _settings = null!;
+    private SaveGame _save = null!;
+    private UiState _ui = null!;
+    private DialogueSystem _dialogue = null!;
+
+    /// <summary>Call before adding to the tree.</summary>
+    public void Init(Main main, GameData data, Settings settings, SaveGame save, UiState ui, DialogueSystem dialogue)
+    {
+        _main = main;
+        _data = data;
+        _settings = settings;
+        _save = save;
+        _ui = ui;
+        _dialogue = dialogue;
+    }
 
     public override void _Ready()
     {
@@ -42,34 +60,34 @@ public partial class PauseMenu : Control
         title.AddThemeFontSizeOverride("font_size", 34);
         title.AddThemeColorOverride("font_color", new Color(1f, 0.85f, 0.5f));
         v.AddChild(title);
-        var sub = new Label { Text = string.IsNullOrEmpty(Game.Instance.Data.World.Name) ? "Cape Colony, April 1901" : Game.Instance.Data.World.Name, HorizontalAlignment = HorizontalAlignment.Center };
+        var sub = new Label { Text = string.IsNullOrEmpty(_data.World.Name) ? "Cape Colony, April 1901" : _data.World.Name, HorizontalAlignment = HorizontalAlignment.Center };
         sub.AddThemeColorOverride("font_color", new Color(0.8f, 0.75f, 0.65f));
         v.AddChild(sub);
         v.AddChild(new HSeparator());
 
         v.AddChild(Btn("Resume", Toggle));
-        v.AddChild(Btn("Save game", () => { Game.Instance.Save(); _status.Text = "Saved to user://save.json"; }));
-        _load = Btn("Load game", () => { if (Game.Instance.Load()) { _status.Text = "Loaded."; Toggle(); } else _status.Text = "No save found."; });
+        v.AddChild(Btn("Save game", () => { _save.Save(); _status.Text = "Saved to user://save.json"; }));
+        _load = Btn("Load game", () => { if (_save.Load()) { _status.Text = "Loaded."; Toggle(); } else _status.Text = "No save found."; });
         v.AddChild(_load);
         v.AddChild(new HSeparator());
 
-        v.AddChild(Slider("Mouse sensitivity", 0.0008f, 0.008f, Game.Instance.MouseSensitivity, x => { Game.Instance.MouseSensitivity = x; Game.Instance.SaveSettings(); }));
-        v.AddChild(Slider("Volume", 0f, 1f, Game.Instance.Volume, x => { Game.Instance.Volume = x; Sfx.ApplyVolume(x); Game.Instance.SaveSettings(); }));
-        var invert = new CheckBox { Text = "Invert mouse Y", ButtonPressed = Game.Instance.InvertY };
-        invert.Toggled += on => { Game.Instance.InvertY = on; Game.Instance.SaveSettings(); };
+        v.AddChild(Slider("Mouse sensitivity", 0.0008f, 0.008f, _settings.MouseSensitivity, x => { _settings.MouseSensitivity = x; _settings.Save(); }));
+        v.AddChild(Slider("Volume", 0f, 1f, _settings.Volume, x => { _settings.Volume = x; Sfx.ApplyVolume(x); _settings.Save(); }));
+        var invert = new CheckBox { Text = "Invert mouse Y", ButtonPressed = _settings.InvertY };
+        invert.Toggled += on => { _settings.InvertY = on; _settings.Save(); };
         v.AddChild(invert);
         var qRow = new HBoxContainer();
         qRow.AddChild(new Label { Text = "Graphics quality", CustomMinimumSize = new Vector2(150, 0) });
         var quality = new OptionButton { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         quality.AddItem("Low (no GI, short shadows)"); quality.AddItem("Medium (GI, AO)"); quality.AddItem("High (GI, AO, volumetric light, TAA)");
-        quality.Selected = (int)Game.Instance.GraphicsQuality;
-        quality.ItemSelected += i => { Game.Instance.GraphicsQuality = (Quality)(int)i; Game.Instance.DayNight?.ApplyQuality((Quality)(int)i); Game.Instance.SaveSettings(); };
+        quality.Selected = (int)_settings.GraphicsQuality;
+        quality.ItemSelected += i => { _settings.GraphicsQuality = (Quality)(int)i; _main.DayNight.ApplyQuality((Quality)(int)i); _settings.Save(); };
         qRow.AddChild(quality);
         v.AddChild(qRow);
         var timeRow = new HBoxContainer();
         timeRow.AddChild(new Label { Text = "Time of day" });
         var time = new HSlider { MinValue = 0, MaxValue = 24, Step = 0.25, SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        time.ValueChanged += x => { if (Game.Instance.DayNight != null) Game.Instance.DayNight.Hour = (float)x; };
+        time.ValueChanged += x => _main.DayNight.Hour = (float)x;
         timeRow.AddChild(time);
         v.AddChild(timeRow);
         v.AddChild(new HSeparator());
@@ -82,9 +100,9 @@ public partial class PauseMenu : Control
         help.AddThemeFontSizeOverride("font_size", 13);
         help.AddThemeColorOverride("font_color", new Color(0.75f, 0.7f, 0.6f));
         v.AddChild(help);
-        if (!string.IsNullOrEmpty(Game.Instance.Data.World.Attribution))
+        if (!string.IsNullOrEmpty(_data.World.Attribution))
         {
-            var attr = new Label { Text = Game.Instance.Data.World.Attribution, AutowrapMode = TextServer.AutowrapMode.Word, HorizontalAlignment = HorizontalAlignment.Center };
+            var attr = new Label { Text = _data.World.Attribution, AutowrapMode = TextServer.AutowrapMode.Word, HorizontalAlignment = HorizontalAlignment.Center };
             attr.AddThemeFontSizeOverride("font_size", 11);
             attr.AddThemeColorOverride("font_color", new Color(0.6f, 0.58f, 0.5f));
             v.AddChild(attr);
@@ -94,7 +112,7 @@ public partial class PauseMenu : Control
         _status.AddThemeColorOverride("font_color", new Color(0.8f, 0.75f, 0.65f));
         v.AddChild(_status);
 
-        VisibilityChanged += () => { if (Visible && Game.Instance.DayNight != null) time.SetValueNoSignal(Game.Instance.DayNight.Hour); };
+        VisibilityChanged += () => { if (Visible) time.SetValueNoSignal(_main.DayNight.Hour); };
     }
 
     private static Button Btn(string text, System.Action onPressed)
@@ -119,9 +137,9 @@ public partial class PauseMenu : Control
     {
         Visible = !Visible;
         _status.Text = "";
-        _load.Disabled = !Game.Instance.HasSave;
+        _load.Disabled = !_save.HasSave;
         GetTree().Paused = Visible;
-        Game.Instance.InputLocked = Visible || Game.Instance.Dialogue.IsActive;
-        Input.MouseMode = Visible || Game.Instance.Dialogue.IsActive ? Input.MouseModeEnum.Visible : Input.MouseModeEnum.Captured;
+        _ui.InputLocked = Visible || _dialogue.IsActive;
+        Input.MouseMode = Visible || _dialogue.IsActive ? Input.MouseModeEnum.Visible : Input.MouseModeEnum.Captured;
     }
 }

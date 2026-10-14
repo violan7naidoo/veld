@@ -68,12 +68,16 @@ public partial class Main : Node3D
         var ui = new CanvasLayer { Name = "UI", ProcessMode = ProcessModeEnum.Always };
         AddChild(ui);
         Hud = new Hud { Name = "Hud" };
+        Hud.Init(this, game.Data, game.Purse, game.Notifier, game.Ui, game.Missions, game.Wanted);
         ui.AddChild(Hud);
         DialogueBox = new DialogueBox { Name = "DialogueBox" };
+        DialogueBox.Init(game.Dialogue);
         ui.AddChild(DialogueBox);
         WorldMap = new WorldMap { Name = "WorldMap" };
+        WorldMap.Init(this, game.Data, game.Notifier, game.Ui, game.Missions, game.Wanted, game.Dialogue);
         ui.AddChild(WorldMap);
         PauseMenu = new PauseMenu { Name = "PauseMenu" };
+        PauseMenu.Init(this, game.Data, game.Settings, game.SaveGame, game.Ui, game.Dialogue);
         ui.AddChild(PauseMenu);
         ui.AddChild(new UiInput { Name = "UiInput" });
 

@@ -36,7 +36,7 @@
 - [x] 17. **Dialogue action and condition registries** - the same treatment for `DialogueSystem.Holds` and `Apply`
 - [ ] 18. **Retire the Game singleton** - remaining `Game.Instance` call sites replaced with services composed in `Main`, UI first, then World, then Characters
   - [x] 18a. **Services carved out of Game** - `Settings`, `Notifier`, `Purse`, `Reputation`, `UiState` and `SaveGame` as small classes that `Game` owns and forwards to; the gameplay systems receive the real ones; no call site moves yet
-  - [ ] 18b. **UI off the singleton** - `Hud`, `Minimap`, `DialogueBox`, `PauseMenu` and `WorldMap` receive their services and siblings through `Init` from `Main` (32 sites)
+  - [x] 18b. **UI off the singleton** - `Hud`, `Minimap`, `DialogueBox`, `PauseMenu` and `WorldMap` receive their services and siblings through `Init` from `Main` (32 sites)
   - [ ] 18c. **World and audio off the singleton** - `Terrain`, `RoadBuilder`, `FootprintBuilder`, `WorldBuilder`, `DayNight`, `Weather` and `Sfx`; `DeadNpcs` moves into `WorldBuilder` (13 sites)
   - [ ] 18d. **Player and camera off the singleton** - `Player` and `CameraRig` (26 sites)
   - [ ] 18e. **NPCs, horse and vehicles off the singleton** - `Npc`, `Horse` and `Vehicle` (36 sites)

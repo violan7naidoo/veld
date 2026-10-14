@@ -82,6 +82,8 @@ public partial class Main : Node3D
 
         // `godot --path . -- --smoke [--shot=C:/path/prefix]` runs the automated smoke test (see DevSmoke.cs)
         if (System.Array.IndexOf(OS.GetCmdlineUserArgs(), "--smoke") >= 0) AddChild(new DevSmoke { Name = "DevSmoke" });
+        // `-- --carstress[=N]` gets into N parked cars in turn and reports any that flip or sink (see DevCarStress.cs)
+        foreach (var a in OS.GetCmdlineUserArgs()) if (a.StartsWith("--carstress")) { AddChild(new DevCarStress { Name = "DevCarStress" }); break; }
     }
 
     /// <summary>Menu-level keys. Called from UiInput, which keeps running while the game is paused.</summary>

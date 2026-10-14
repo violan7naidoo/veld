@@ -37,6 +37,7 @@ public partial class Player : CharacterBody3D
     private float _sinceHit;
     private float _deadTimer;
     private float _footstep;
+    private bool _restoreCollision;
     private const float WalkSpeed = 3.4f;
     private const float SprintSpeed = 6.6f;
     private const float JumpSpeed = 4.6f;
@@ -143,8 +144,10 @@ public partial class Player : CharacterBody3D
         var v = Driving;
         Driving = null;
         v.SetDriver(null);
-        CollisionLayer = Layers.Characters;
-        CollisionMask = Layers.Solid | Layers.Horses;
+        // the collision shape comes back next physics frame: restoring it now, while the physics
+        // server still has this body at the seat inside the car, resolves that overlap with a kick
+        // that sends the car flying or through the road
+        _restoreCollision = true;
         GlobalPosition = v.ExitPosition();
         Rotation = new Vector3(0, v.Rotation.Y, 0);
         Velocity = Vector3.Zero;
@@ -215,6 +218,12 @@ public partial class Player : CharacterBody3D
         float dt = (float)delta;
         var game = Game.Instance;
         foreach (var w in Weapons.Values) w.Tick(dt);
+        if (_restoreCollision)
+        {
+            _restoreCollision = false;
+            CollisionLayer = Layers.Characters;
+            CollisionMask = Layers.Solid | Layers.Horses;
+        }
 
         if (IsDead)
         {

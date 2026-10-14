@@ -137,6 +137,9 @@ variant prints to the terminal; the plain one does not.
   (optional `--shot=C:/temp/veld` for screenshots, `--quality=0|1|2` for the
   graphics tier). Prints `PASS`/`FAIL` lines and exits non-zero on failure.
   This is the regression gate until a unit test command exists.
+- Car stress: `"GODOT\Godot_v4.7.2-stable_mono_win64_console.exe" --path . -- --carstress=40 --quality=0`
+  gets into 40 parked cars and fails any that flip, lift, sink or bolt. Run it after any change to
+  `Vehicle.cs` or the player's enter and exit code.
 - Regenerate the map: `python tools/osm_to_map.py tools/source/montford_osm.json tools/source/montford_elevation.json data/maps/chatsworth-unit7`
 - Lint: none configured.
 - Test: none yet. Testing is opt-in; run `/tests` to add an xUnit project

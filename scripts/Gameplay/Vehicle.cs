@@ -30,6 +30,7 @@ public partial class Vehicle : VehicleBody3D, IInteractable
     private bool _braking, _handbrake;
     private float _hornCooldown;
     private float _parkedFor;
+    private int _stillFrames;
 
     private float Power => Kind == "taxi" ? 5200f : 4200f;
     private float MaxSpeed => Kind == "taxi" ? 27f : 33f;
@@ -134,6 +135,7 @@ public partial class Vehicle : VehicleBody3D, IInteractable
         {
             Freeze = false;
             _parkedFor = 0f;
+            _stillFrames = 0;
             Sleeping = false;
             if (_engine == null)
             {
@@ -146,10 +148,8 @@ public partial class Vehicle : VehicleBody3D, IInteractable
         {
             _throttle = 0f; _steerTarget = 0f; _handbrake = true;
             _engine?.Stop();
-            // pin it the moment the driver steps out: a frozen body cannot roll down the hill, and the
-            // physics solver cannot shove it through the road when the player's capsule appears beside it
-            LinearVelocity = Vector3.Zero; AngularVelocity = Vector3.Zero;
-            Freeze = true;
+            _parkedFor = 0f;
+            _stillFrames = 0;
         }
     }
 
@@ -170,6 +170,7 @@ public partial class Vehicle : VehicleBody3D, IInteractable
         GlobalTransform = new Transform3D(Basis.Identity.Rotated(Vector3.Up, yaw), at);
         LinearVelocity = Vector3.Zero; AngularVelocity = Vector3.Zero;
         _parkedFor = 0f;
+        _stillFrames = 0;
         Game.Instance.Main?.Sfx.Horn(at);
         Game.Instance.Notify("A mate drops your car off beside you. R20 for petrol.");
     }
@@ -227,26 +228,34 @@ public partial class Vehicle : VehicleBody3D, IInteractable
         else
         {
             EngineForce = 0f;
-            Brake = 300f; // parking brake while a recalled car settles; the freeze below then holds it
+            Brake = 300f; // parking brake while the car comes to rest; the freeze below then holds it
             Steering = Mathf.Lerp(Steering, 0f, 1f - Mathf.Exp(-dt * 4f));
-            // then pin it: a parked car must not creep away, whatever the slope
+            // pin it once it has settled, so it cannot creep down a hill. Not before: freezing mid-bounce
+            // stores a compressed spring that hops the car when the next driver gets in. The cap keeps a
+            // car on a steep slope from creeping forever.
             _parkedFor += dt;
-            if (!Freeze && (_parkedFor > 0.5f && LinearVelocity.Length() < 1.0f || _parkedFor > 1.0f))
+            _stillFrames = LinearVelocity.Length() < 0.25f ? _stillFrames + 1 : 0;
+            if (!Freeze && (_stillFrames >= 15 || _parkedFor > 3.0f))
             {
                 LinearVelocity = Vector3.Zero; AngularVelocity = Vector3.Zero;
                 Freeze = true;
             }
         }
 
-        // keep it on its wheels: a righting torque when the body rolls, downforce with speed
-        var up = GlobalTransform.Basis.Y;
-        float roll = Mathf.Acos(Mathf.Clamp(up.Dot(Vector3.Up), -1f, 1f));
-        if (roll > 0.02f)
+        // keep it on its wheels: a righting torque when the body rolls, downforce with speed. Never while
+        // frozen: a frozen body banks every force applied to it and releases the lot when it is unfrozen,
+        // which is what used to launch and flip a parked car the moment the driver got in.
+        if (!Freeze)
         {
-            var axis = up.Cross(Vector3.Up);
-            if (axis.LengthSquared() > 0.0001f) ApplyTorque(axis.Normalized() * roll * Mass * 9f - AngularVelocity * Mass * 0.9f);
+            var up = GlobalTransform.Basis.Y;
+            float roll = Mathf.Acos(Mathf.Clamp(up.Dot(Vector3.Up), -1f, 1f));
+            if (roll > 0.02f)
+            {
+                var axis = up.Cross(Vector3.Up);
+                if (axis.LengthSquared() > 0.0001f) ApplyTorque(axis.Normalized() * roll * Mass * 9f - AngularVelocity * Mass * 0.9f);
+            }
+            ApplyCentralForce(-Vector3.Up * speed * speed * 6f);
         }
-        ApplyCentralForce(-Vector3.Up * speed * speed * 6f);
 
         float night = Game.Instance.DayNight?.NightFactor ?? 0f;
         bool lightsOn = Occupied && night > 0.15f;

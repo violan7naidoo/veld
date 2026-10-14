@@ -274,6 +274,10 @@ system, saves, loads, toggles the pause menu and the map, advances the clock to 
 thunderstorm, printing `PASS`/`FAIL` lines and exiting non-zero on any failure. `--shot=prefix` also
 saves screenshots along the way. `--quality=0|1|2` picks the graphics tier for the run.
 
+`-- --carstress=40` is the car physics check: it gets into forty parked cars around the suburb, waits
+a second in each with no input, gets out and in again, and fails any car that flips, lifts, sinks
+into the ground or bolts. Run it after touching the vehicle code.
+
 ## Known limits (this is a prototype)
 
 - Placeholder geometry and procedural sounds; no animation rig, no facial anything.

@@ -36,7 +36,6 @@
 
 ## Post-MVP: enhancements
 
-- [ ] 20. **House numbers and addresses** - numbers generated per road in the converter, plates by the door, HUD address, map search
 - [ ] 21. **Roofs for any outline** - hip roofs on L and T shaped houses, not only rectangles
 - [ ] 22. **Landmark models** - stadium, shopping centre, police station, schools and filling stations as real models via overrides
 - [ ] 23. **Animals** - dogs, monkeys and birds that wander and flee

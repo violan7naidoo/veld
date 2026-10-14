@@ -265,8 +265,13 @@ Everything you see is generated at startup; there are no texture image files in 
 
 ```
 dotnet build
+dotnet test tests/Veld.Tests
 "...\Godot_v4.7.2-stable_mono_win64_console.exe" --path . -- --smoke --shot=C:/temp/veld
 ```
+
+`dotnet test` runs the xUnit tests under `tests/Veld.Tests` against the game's pure logic (money
+formatting, faction names). They reference the game assembly but never start the engine, so anything
+that needs a scene is covered by the smoke run below instead.
 
 `--smoke` walks, shoots, switches weapons, gets into the car and drives it, calls it back with H, talks
 to Aunty Devi, runs the parcel mission from start to finish, provokes the police to trigger the wanted

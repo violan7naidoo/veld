@@ -67,16 +67,18 @@ real resident is depicted or implied. Missions are small-town stories.
 
 ## Testing
 
-There is no unit test runner yet; the opt-in switch is a `test` command in the
-Commands section of `AGENTS.md`, which `/tests` adds (build plan item 14).
-Until then, the regression gate is the smoke run:
+The test runner is xUnit in `tests/Veld.Tests`, run with the `test` command in
+the Commands section of `AGENTS.md` (`dotnet test tests/Veld.Tests`). The game
+project excludes `tests/**` from its own compile and the folder carries a
+`.gdignore`, so the editor never sees the tests. The smoke run stays the
+regression gate for everything that needs a scene:
 
     "...\Godot_v4.7.2-stable_mono_win64_console.exe" --path . -- --smoke
 
-It must print no `FAIL` lines and exit 0 after every change, and `dotnet build`
-must be warning-free for the files touched.
+Both must pass after every change: no `FAIL` lines, exit 0, and `dotnet build`
+warning-free for the files touched.
 
-Once the test command exists, tests become a gate for logic-bearing steps:
+The test gate is on. Tests are required for logic-bearing steps:
 
 - **What to test:** pure logic where a wrong answer is possible: money
   formatting, dialogue condition and action parsing, mission step progression,

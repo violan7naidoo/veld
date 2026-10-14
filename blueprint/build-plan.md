@@ -27,7 +27,7 @@
 
 ## MVP: SOLID without breaking the game
 
-- [ ] 14. **Unit test runner** - `tests/Veld.Tests` (xUnit) for pure logic, wired into the build and documented in `AGENTS.md`
+- [x] 14. **Unit test runner** - `tests/Veld.Tests` (xUnit) for pure logic, wired into the build and documented in `AGENTS.md`
 - [ ] 15. **Game services seam** - `IClock`, `IEconomy` and `INotifier` extracted from `Game` and injected into `MissionManager`, `DialogueSystem` and `WantedSystem`, with first tests at that seam
 - [ ] 16. **Mission step registry** - `IMissionStep` implementations looked up by type name replace the switches in `MissionManager`; existing JSON unchanged
 - [ ] 17. **Dialogue action and condition registries** - the same treatment for `DialogueSystem.Holds` and `Apply`

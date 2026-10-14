@@ -142,8 +142,8 @@ variant prints to the terminal; the plain one does not.
   `Vehicle.cs` or the player's enter and exit code.
 - Regenerate the map: `python tools/osm_to_map.py tools/source/montford_osm.json tools/source/montford_elevation.json data/maps/chatsworth-unit7`
 - Lint: none configured.
-- Test: none yet. Testing is opt-in; run `/tests` to add an xUnit project
-  (build plan item 14) and record the real command here.
+- Test: `dotnet test tests/Veld.Tests` (xUnit, pure logic only; see the Testing
+  section of `blueprint/context/coding-standards.md`). Watch: `dotnet watch test --project tests/Veld.Tests`.
 - Verify: not declared. Run `/ci` when you want one combined command and
   automatic GitHub checks; note the smoke test needs a Godot download on the
   runner.

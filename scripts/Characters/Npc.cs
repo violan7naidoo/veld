@@ -94,7 +94,7 @@ public partial class Npc : CharacterBody3D, IInteractable, INpcView
         {
             _looted = true;
             int pence = Faction == Faction.Outlaw ? GD.RandRange(18, 60) : GD.RandRange(1, 9);
-            if (Faction != Faction.Outlaw) Game.Instance.Reputation -= 1;
+            if (Faction != Faction.Outlaw) Game.Instance.Reputation.Lose(1);
             Game.Instance.AddMoney(pence);
             Game.Instance.Main?.Sfx.Coins(GlobalPosition);
             Game.Instance.Notify("You find " + Money.Format(pence) + " on " + Data.Name + ".");
@@ -113,7 +113,7 @@ public partial class Npc : CharacterBody3D, IInteractable, INpcView
         return Faction switch
         {
             Faction.British => Game.Instance.Wanted.Level > 0,
-            Faction.Boer => Game.Instance.Reputation < -2,
+            Faction.Boer => Game.Instance.Reputation.ResidentsHostile,
             _ => false,
         };
     }
@@ -129,7 +129,7 @@ public partial class Npc : CharacterBody3D, IInteractable, INpcView
             if (Game.Instance.World != null && !string.IsNullOrEmpty(Data.Group))
                 foreach (var n in Game.Instance.World.Group(Data.Group)) n.Provoked = true;
             Game.Instance.Wanted.ReportAttack(this, p, killed);
-            if (Faction is Faction.Civilian or Faction.Boer) Game.Instance.Reputation -= killed ? 2 : 1;
+            if (Faction is Faction.Civilian or Faction.Boer) Game.Instance.Reputation.Lose(killed ? 2 : 1);
             if (Weapon == null) StartFlee(p.GlobalPosition);
             else _reactTimer = 0.2f;
         }

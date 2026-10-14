@@ -1,244 +1,161 @@
 # Coding Standards
 
-> Your conventions. Edit these once to match your stack. The defaults below
-> assume Next.js + TypeScript + Tailwind + Prisma; change or trim anything that
-> doesn't fit your project.
->
-> Run `/onboard` after installing the Blueprint. It tunes this file to the real
-> project stack, along with `AGENTS.md`, `CLAUDE.md` when present,
-> `ai-interaction.md`, `.gitignore`, and README placement. Review the result
-> before `/overview`.
+> The conventions this codebase actually follows, written by `/adopt` on
+> 2026-10-14 from the code as it is. Where a line describes where we are going
+> rather than where we are, it says so. Edit to taste; `/implement` and
+> `/audit` hold work to this file.
 
-## TypeScript
+## Stack
 
-- Strict mode enabled
-- No `any` types - use proper typing or `unknown`
-- Define interfaces for all props, API responses, and data models
-- Use type inference where obvious, explicit types where helpful
+- Godot 4.7.2 .NET, C# on .NET 8. `Veld.csproj` uses `Godot.NET.Sdk/4.7.2`
+  with `Nullable` enabled and `LangVersion` latest. Keep both.
+- Everything in the scene is built in code from JSON data. The four `.tscn`
+  files are stubs that attach a script to a root node; do not grow them.
+- Python 3 tools under `tools/` use the standard library only.
 
-## React
+## Project layout
 
-- Functional components only (no class components)
-- Use hooks for state and side effects
-- Keep components focused - one job per component
-- Extract reusable logic into custom hooks
+- `scripts/Core/` - entry point, data schema, input map, physics layers, smoke test
+- `scripts/World/` - terrain, roads, buildings, dressing, vegetation, sky, weather, map image, textures, prop helpers
+- `scripts/Characters/` - player, NPCs, horse, humanoid model, camera, factions
+- `scripts/Gameplay/` - weapons, vehicles, missions, dialogue, wanted system
+- `scripts/UI/` - HUD, minimap, world map, dialogue box, pause menu
+- `scripts/Audio/` - generated sounds
+- `data/maps/<map-id>/` - one folder per map; generated files next to hand-written ones
+- `tests/Veld.Tests/` - unit tests, once item 14 of the build plan lands
 
-## Next.js
+One system per file. A file is named after the type it holds.
 
-- Server components by default
-- Only use `'use client'` when needed (interactivity, hooks, browser APIs)
-- Use Server Actions for form submissions and simple mutations
-- Use API routes when you need:
-  - Webhooks (Clerk, GitHub, etc.)
-  - File uploads with progress tracking
-  - Long-running operations
-  - Specific HTTP status codes or headers
-  - Endpoints for future mobile/CLI clients
-  - Third-party integrations
-- Otherwise, fetch data directly in server components
-- Dynamic routes for item/collection pages
+## C# conventions
 
-## File Organization
+- File-scoped namespaces: `namespace Veld.World;`
+- Godot node types are `public partial class X : Node3D` (or the relevant node).
+  Plain data and services are `public sealed class`.
+- Late-bound node fields use `= null!`; everything else is nullable-correct.
+- Naming: PascalCase for types, methods, properties and constants;
+  `_camelCase` for private fields; camelCase for locals and parameters.
+- Allman braces for types and members; a short body may sit on one line.
+- Data classes mirror the JSON exactly and carry no behaviour. JSON is camelCase,
+  comments and trailing commas allowed, read through `DataLoader.Json`.
+- Cross-system notifications use C# events (`event Action<int>? MoneyChanged`),
+  not Godot signals, unless a Godot node needs the signal.
+- Static helper classes (`Props`, `Tex`, `Money`, `Factions`, `Layers`) hold
+  pure functions and constants only.
+- Physics layers come from `Layers`; never hard-code a layer bit.
+- Positions in data are `[x, z]` metres from the map centre, x east, z south;
+  height always comes from the terrain.
 
-- Components: `src/components/[feature]/ComponentName.tsx`
-- Pages: `src/app/[route]/page.tsx`
-- Server Actions: `src/actions/[feature].ts`
-- Types: `src/types/[feature].ts`
-- Lib/Utils: `src/lib/[utility].ts`
+## Dependencies and seams (where we are going)
 
-## Naming
+- `Game.Instance` is a service locator reached from 111 call sites today. **Do
+  not add new call sites.** New code receives what it needs through its
+  constructor or an `Init` method. Existing call sites are removed by build
+  plan items 15 and 18.
+- Behaviour keyed on a string (`step.Type`, dialogue `action` and `condition`,
+  building `kind`) belongs in a registry of small classes looked up by name,
+  not in a growing `switch`. Items 16 and 17 introduce the registries; add new
+  kinds there once they exist.
+- Simulation logic (missions, dialogue rules, economy, NPC decisions) should
+  not depend on Godot node types. Where it does today, note it; item 19 moves
+  it into `Veld.Sim`.
 
-- Components: PascalCase (`ItemCard.tsx`)
-- Files: Match component name or kebab-case
-- Functions: camelCase
-- Constants: SCREAMING_SNAKE_CASE
-- Types/Interfaces: PascalCase (no prefix)
+## Content rules
 
-## Styling
-
-- Tailwind CSS for all styling
-- Tailwind v4: CSS-first config (`@theme` in `globals.css`), no `tailwind.config.js`
-- Use shadcn/ui components where applicable
-- No inline styles
-- Dark mode first, light mode as option
-
-## Database
-
-- Use Prisma ORM for all database operations
-- Always use `prisma migrate dev` for schema changes (not `db push`)
-- Run `prisma migrate status` before committing to verify migrations are in sync
-- Production deployments must run `prisma migrate deploy` before the app starts
-
-## Data Fetching
-
-- Server components fetch directly with Prisma
-- Client components use Server Actions
-- Validate all inputs with Zod
-- Scope every user-owned query by the authenticated Clerk user id (`clerkUserId`); never trust a client-supplied user id
-
-## Error Handling
-
-- Use try/catch in Server Actions
-- Return `{ success, data, error }` pattern from actions
-- Display user-friendly error messages via toast
+From `docs/design.md`. Every character is invented. Shops get generic trade
+signs, never a real business name. Real public places keep their names. No
+real resident is depicted or implied. Missions are small-town stories.
 
 ## Testing
 
-The blueprint installs no test runner; testing is opt-in at the project level,
-because the overlay can't know your stack. Adding unit testing is an explicit
-setup task the AI can do through the normal workflow, either as a build-plan item
-or with `/tests`. The setup should choose the stack-native runner, wire the
-scripts or commands, add a small example test, and update the Commands section
-of `AGENTS.md`.
+There is no unit test runner yet; the opt-in switch is a `test` command in the
+Commands section of `AGENTS.md`, which `/tests` adds (build plan item 14).
+Until then, the regression gate is the smoke run:
 
-When `AGENTS.md` declares a `Verify` command, treat it as the umbrella automated
-gate. It combines only the checks this project actually has, in this order when
-available: typecheck, tests, then build. The command does not enable an absent
-test runner or replace focused evidence. It gives local work and optional CI one
-exact command to run. `/ci` owns Verify and CI setup. `/tests` adds the real test
-command to Verify when it already exists, but never creates CI only because
-testing was configured.
+    "...\Godot_v4.7.2-stable_mono_win64_console.exe" --path . -- --smoke
 
-**The opt-in switch is one signal: a `test` command in the Commands section of
-`AGENTS.md`.** Declare one and **tests become a gate for logic-bearing steps**,
-not an optional extra; leave it out and the loop verifies logic with the evidence
-it already uses (run it, a screenshot, the build). Adding the runner is itself a
-deliberate step, never a silent mid-step install. This is the single definition
-of the switch; the skills and `ai-interaction.md` only point back here.
+It must print no `FAIL` lines and exit 0 after every change, and `dotnet build`
+must be warning-free for the files touched.
 
-- **What to test (the scope rule):** pure logic where a wrong answer is possible -
-  parsers, formatters, validators, id/slug builders, server actions. These have
-  assertable inputs and outputs and real edge cases (empty, missing, malformed).
-- **What not to test:** UI components and integration-level surfaces (render or
-  export routes, anything driving a real browser or external service). Verify those
-  with a screenshot and the build, not brittle unit tests.
-- **The gate (when a runner is configured):** a build step that adds in-scope logic
-  must ship a passing test in the same reviewable diff. The project's test command
-  must be green before the step is approved, before any checkpoint commit, and
-  before `/complete` merges. UI and integration-only steps are exempt and ride on
-  screenshot plus build evidence.
-- **When it's named:** the `/feature` spec's Testing section predicts the coverage,
-  `/implement` writes the test with the step, and if a step surfaces logic the spec
-  didn't foresee, add a focused test then.
-- An empty suite should fail, not pass, so "no tests ran" never looks like "passed".
-- Test files live next to source files (for example `feature.test.ts`).
-- Run them via the project's test command (see Commands in `AGENTS.md`), not a
-  hardcoded tool name.
+Once the test command exists, tests become a gate for logic-bearing steps:
 
-Stack binding (swap for yours): a TypeScript app uses Vitest, `vi.mock()` for
-external dependencies (Prisma, Clerk, etc.), and `vi.useFakeTimers()` for
-time-dependent logic; a Python app would use pytest; a Go app `go test`.
+- **What to test:** pure logic where a wrong answer is possible: money
+  formatting, dialogue condition and action parsing, mission step progression,
+  address numbering, geometry helpers such as `OrientedRect` and `SignedArea`.
+- **What not to test:** anything that needs a running Godot scene (rendering,
+  physics, input, nodes). Those ride on the smoke run and screenshots.
+- **The gate:** a step that adds in-scope logic ships a passing test in the same
+  diff. The test command must be green before the step is approved, before any
+  checkpoint commit and before `/complete` merges.
+- Tests live in `tests/Veld.Tests/`, mirroring the `scripts/` folder, named
+  `<Type>Tests.cs`. Run them via the project's test command, not a hard-coded
+  tool name. An empty suite should fail, not pass.
+
+Stack binding: xUnit on .NET 8. Logic under test must not reference
+`Godot.*` types, which is the practical reason for the seams above.
 
 ## Test design
 
-This section defines *how* a test is written once the Testing gate above is
-on. It applies to every logic-bearing step in `/implement`.
+**Confirm the seam first.** Name the public interface under test (the spec's
+Test seams block, or ask) before writing a test. No test at an unconfirmed
+seam. When the interface shape is itself in question, use the vocabulary in
+`blueprint/context/architecture-reference.md`.
 
-**Confirm the seam first.** A seam is the public boundary you test at - the
-interface where you observe behavior without reaching inside. Test only at a
-pre-agreed seam: before writing any test, name the public interface under
-test and confirm it (the spec's Test seams block, or ask now if the spec
-didn't name one). No test at an unconfirmed seam. When the shape of that
-interface is itself in question, see `blueprint/context/architecture-reference.md`
-for the module/interface/depth/seam vocabulary.
+**Tests verify behaviour, not implementation.**
 
-**Tests verify behavior, not implementation.** A good test reads like a
-specification and survives refactors because it doesn't care about internal
-structure:
+```csharp
+// GOOD - observable behaviour through the public interface
+[Fact]
+public void Mission_completes_when_last_step_reports()
+{
+    var missions = new MissionManager(clock, economy, notifier, data);
+    missions.Start("parcel");
+    missions.OnReached("parcel", step: 0);
+    missions.OnTalked("mr_govender");
+    missions.OnTalked("aunty_devi");
+    Assert.True(missions.IsDone("parcel"));
+}
 
-```typescript
-// GOOD - observable behavior through the public interface
-test("user can checkout with valid cart", async () => {
-  const cart = createCart();
-  cart.add(product);
-  const result = await checkout(cart, paymentMethod);
-  expect(result.status).toBe("confirmed");
-});
-
-// BAD - coupled to implementation, breaks on refactor with no behavior change
-test("checkout calls paymentService.process", async () => {
-  const mockPayment = jest.mock(paymentService);
-  await checkout(cart, payment);
-  expect(mockPayment.process).toHaveBeenCalledWith(cart.total);
-});
+// BAD - coupled to internals, breaks on refactor with no behaviour change
+Assert.Equal(2, missions.StepIndex);
 ```
 
 Red flags: mocking internal collaborators, testing private methods, asserting
-on call counts/order, verifying through a side channel (querying the database
-directly instead of the interface), or a test name that describes *how*
-instead of *what*.
+call counts, reading state through a side channel.
 
-**Expected values must be independent.** Never recompute the expected value
-the way the implementation computes it - that passes by construction and can
-never disagree with the code:
+**Expected values must be independent.** `Assert.Equal("£2 3s 6d",
+Money.Format(522))`, never a value recomputed the way the code computes it.
 
-```typescript
-// BAD - tautological: expected is derived the same way the code derives it
-const expected = items.reduce((sum, i) => sum + i.price, 0);
-expect(calculateTotal(items)).toBe(expected);
+**Mock only true external boundaries.** The clock, randomness and the file
+system. Never mock our own modules; pass real ones.
 
-// GOOD - expected is an independent, known literal
-expect(calculateTotal([{ price: 10 }, { price: 5 }])).toBe(15);
-```
+**One vertical slice at a time.** Red before green: one failing test at the
+seam, the minimum code to pass it, repeat. Refactoring happens in `/audit`,
+not mid-cycle.
 
-**Mock only true external boundaries.** External APIs (payment, email),
-databases (prefer a real test database when practical), time/randomness, and
-the filesystem (sometimes) are fair game. Never mock your own modules,
-internal collaborators, or anything you control - if it's yours, use the real
-thing. Design for it: accept dependencies as parameters instead of creating
-them internally, and prefer specific per-operation functions over one generic
-fetcher with conditional logic, so each mock returns one predictable shape.
+## Code quality
 
-**One vertical slice at a time.** Red before green: write the failing test
-first, then only enough code to pass it - don't anticipate future tests or add
-speculative features. One seam, one test, one minimal implementation per
-cycle; repeat. Writing all the tests first and all the implementation second
-tests the *shape* you imagined, not the behavior that emerged - work in
-slices instead. Refactoring is not part of this loop; it happens during
-`/audit`, not mid-cycle.
-
-## Browser Verification
-
-For UI and integration behavior, prefer real browser evidence over reading the
-code and assuming it works.
-
-- If Playwright is already installed, or the Commands section of `AGENTS.md`
-  declares a Playwright script, use Playwright for browser checks, screenshots,
-  console-error checks, and user-flow verification.
-- If Playwright is not installed, do not add it silently in the middle of an
-  unrelated feature. Use the available dev server, browser screenshots, build
-  output, API output, or manual verification evidence instead.
-- Add Playwright only when the user asks for it, or when the current spec is
-  explicitly about setting up browser automation.
-- Browser evidence is especially important for flows that click, type, submit,
-  navigate, download files, render complex layouts, or depend on client-side
-  state.
-
-## Code Quality
-
-- No commented-out code unless specified
-- No unused imports or variables
-- Keep functions under 50 lines when possible
+- No commented-out code.
+- No unused `using` directives, fields or variables.
+- Keep methods under 50 lines where practical; the world builders are the
+  known exception and are split by build plan items, not inline.
+- Prefer a small sealed class over a tuple once a shape is used in more than
+  one place.
 
 ## Comments
 
 Write code that explains itself; comment only what the code cannot say.
-Over-commenting is a common AI tell, so resist it.
 
+- One `/// <summary>` line on each class saying what it owns is the existing
+  convention. Keep it to a line or two.
 - Comment the **why**, not the **what**. Delete any comment that restates the code.
-- No banner/header blocks, section dividers, or step-by-step narration of obvious
-  code. A file does not need a comment announcing each region.
-- A comment earns its place only when it captures something the code can't: a
-  non-obvious decision, a gotcha or workaround, why a value is what it is, or a
-  link to a spec or issue.
-- Prefer self-documenting names and small functions over explanatory comments.
-- Keep doc comments minimal: a one-line purpose on an exported type or function is
-  plenty; don't write JSDoc that just repeats the signature.
+- No banner blocks or section dividers in new code. (`// ----- name` dividers
+  exist in some world files; do not add more.)
 - When in doubt, leave the comment out.
 
 ## Writing
 
 - No em dashes (U+2014) in generated content: docs, comments, commit messages,
-  READMEs, specs. They read as AI-generated.
-- Use a hyphen for `term - description` separators; rephrase prose with commas,
-  parentheses, or a colon. Avoid en dashes and the ellipsis character too.
+  specs. Use a hyphen for `term - description` and rephrase prose with commas,
+  parentheses or a colon. Avoid en dashes and the ellipsis character too.
+- British spelling (colour, metre, neighbour) in prose and strings shown to
+  the player, matching the existing text.

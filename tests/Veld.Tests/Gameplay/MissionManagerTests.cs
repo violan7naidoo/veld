@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Godot;
 using Veld.Core;
 using Veld.Gameplay;
+using Veld.Gameplay.Steps;
 using Veld.Tests.Fakes;
 using Xunit;
 
@@ -208,6 +209,41 @@ public class MissionManagerTests
         PlayerAt(445f, 905f);
         missions.Update(0.016f);
         Assert.Equal(new Vector3(440f, 0f, 900f), missions.MarkerPosition);
+    }
+
+    /// <summary>A kind no shipped mission uses, registered by a test to prove the registry is the seam.</summary>
+    private sealed class AlwaysDoneStep : IMissionStepKind
+    {
+        public string Type => "always_done";
+        public bool Poll(MissionStep step, IWorldQuery world) => true;
+        public Vector3? Marker(MissionStep step, IWorldQuery world, string giver) => null;
+    }
+
+    [Fact]
+    public void A_kind_added_to_the_registry_drives_a_step()
+    {
+        var wait = new MissionData { Id = "wait", Title = "Wait", Giver = "aunty_devi", Steps = { new MissionStep { Type = "always_done", Objective = "Just wait" } } };
+        var data = new GameData { Missions = { wait } };
+        var missions = new MissionManager(data, _world, _economy, _notifier, MissionStepRegistry.Builtin().Add(new AlwaysDoneStep()));
+        missions.Start("wait");
+
+        missions.Update(0.016f);
+
+        Assert.True(missions.IsDone("wait"));
+    }
+
+    [Fact]
+    public void An_unknown_step_kind_is_reported_when_the_mission_starts()
+    {
+        var delivery = new MissionData { Id = "delivery", Title = "The Delivery", Giver = "aunty_devi", Steps = { new MissionStep { Type = "deliver", Objective = "Deliver it" } } };
+        var missions = Manager(delivery);
+
+        missions.Start("delivery");
+        missions.Update(0.016f);
+
+        Assert.Equal(new[] { "New task: The Delivery", "Mission 'The Delivery' has a step of unknown kind 'deliver'." }, _notifier.Messages);
+        Assert.Equal(0, missions.StepIndex);
+        Assert.Null(missions.MarkerPosition);
     }
 
     [Fact]

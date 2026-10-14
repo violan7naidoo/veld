@@ -32,7 +32,7 @@
   - [x] 15a. **Ports and the mission system** - `IEconomy`, `INotifier`, `IWorldQuery`, `INpcView`, `IPlayerView` with live adapters; `MissionManager` on the ports; first behaviour tests with fakes
   - [x] 15b. **Dialogue on the ports** - `IClock` and `IDialogueView` added; `DialogueSystem` conditions and actions tested with fakes
   - [x] 15c. **Wanted system on the ports** - `WantedSystem` heat, witnesses and decay tested with a fake world
-- [ ] 16. **Mission step registry** - `IMissionStep` implementations looked up by type name replace the switches in `MissionManager`; existing JSON unchanged
+- [x] 16. **Mission step registry** - `IMissionStep` implementations looked up by type name replace the switches in `MissionManager`; existing JSON unchanged
 - [ ] 17. **Dialogue action and condition registries** - the same treatment for `DialogueSystem.Holds` and `Apply`
 - [ ] 18. **Retire the Game singleton** - remaining `Game.Instance` call sites replaced with services composed in `Main`, UI first, then World, then Characters
 - [ ] 19. **Simulation and presentation split** - a `Veld.Sim` library holding world, mission, NPC and economy state at a fixed tick; Godot nodes render and forward input

@@ -44,6 +44,7 @@ public partial class Main : Node3D
         World = new WorldBuilder { Name = "World" };
         AddChild(World);
         World.Build(game.Data);
+        AddressIndex.Build(game.Data.World);
 
         Camera = new CameraRig { Name = "CameraRig" };
         AddChild(Camera);
@@ -57,6 +58,7 @@ public partial class Main : Node3D
         Camera.Target = Player;
         Camera.Yaw = Mathf.DegToRad(game.Data.World.PlayerSpawnFacing);
         Player.Camera = Camera;
+        World.Plates?.Follow(Player);
 
         World.SpawnHorse(game.Data);
         World.SpawnPlayerCar(game.Data);

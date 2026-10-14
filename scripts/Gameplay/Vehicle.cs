@@ -146,6 +146,10 @@ public partial class Vehicle : VehicleBody3D, IInteractable
         {
             _throttle = 0f; _steerTarget = 0f; _handbrake = true;
             _engine?.Stop();
+            // pin it the moment the driver steps out: a frozen body cannot roll down the hill, and the
+            // physics solver cannot shove it through the road when the player's capsule appears beside it
+            LinearVelocity = Vector3.Zero; AngularVelocity = Vector3.Zero;
+            Freeze = true;
         }
     }
 
@@ -223,11 +227,15 @@ public partial class Vehicle : VehicleBody3D, IInteractable
         else
         {
             EngineForce = 0f;
-            Brake = 80f;
+            Brake = 300f; // parking brake while a recalled car settles; the freeze below then holds it
             Steering = Mathf.Lerp(Steering, 0f, 1f - Mathf.Exp(-dt * 4f));
-            // once it has come to rest, pin it: a parked car must not creep down Chatsworth's hills
+            // then pin it: a parked car must not creep away, whatever the slope
             _parkedFor += dt;
-            if (!Freeze && _parkedFor > 1.0f && LinearVelocity.Length() < 0.4f) Freeze = true;
+            if (!Freeze && (_parkedFor > 0.5f && LinearVelocity.Length() < 1.0f || _parkedFor > 1.0f))
+            {
+                LinearVelocity = Vector3.Zero; AngularVelocity = Vector3.Zero;
+                Freeze = true;
+            }
         }
 
         // keep it on its wheels: a righting torque when the body rolls, downforce with speed

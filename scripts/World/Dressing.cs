@@ -93,9 +93,10 @@ public partial class Dressing : Node3D
     /// <summary>Public institutions keep their names; private shops get a generic trade sign.</summary>
     private static string PoiLabel(PoiData poi)
     {
+        if (poi.Kind != "fuel" && MapImage.NamedPlaceKinds.Contains(poi.Kind)) return poi.Name;
         return poi.Kind switch
         {
-            "school" or "police" or "fire_station" or "post_office" or "library" or "hospital" or "clinic" or "place_of_worship" or "community_centre" or "townhall" => poi.Name,
+            "doctors" => "DOCTOR",
             "shop:convenience" => "SUPERETTE",
             "shop:supermarket" => "SUPERMARKET",
             "shop:hairdresser" => "HAIR SALON",
@@ -107,7 +108,6 @@ public partial class Dressing : Node3D
             "shop:bakery" => "BAKERY",
             "shop:butcher" => "BUTCHERY",
             "fuel" => "FILLING STATION",
-            "doctors" => "DOCTOR",
             "pharmacy" => "PHARMACY",
             "veterinary" => "ANIMAL CLINIC",
             "restaurant" or "fast_food" or "cafe" => "TAKEAWAYS",

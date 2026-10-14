@@ -7,7 +7,8 @@ namespace Veld.UI;
 
 /// <summary>
 /// The full-screen map (M). Pauses the game. Scroll to zoom, drag to pan, click to set a waypoint,
-/// right-click to clear it. Road names and places appear as you zoom in.
+/// right-click to clear it. Road names and places appear as you zoom in, house numbers when close;
+/// the search box finds an address ("42 Road 721") and sets the waypoint on it.
 /// </summary>
 public partial class WorldMap : Control
 {
@@ -19,6 +20,7 @@ public partial class WorldMap : Control
     private Vector2 _dragStart, _dragCentre;
     private bool _moved;
     private Label _title = null!;
+    private LineEdit _search = null!;
 
     private static readonly Color Parchment = new(0.95f, 0.9f, 0.78f);
 
@@ -35,6 +37,29 @@ public partial class WorldMap : Control
         _title.AddThemeConstantOverride("outline_size", 5);
         _title.Position = new Vector2(24, 18);
         AddChild(_title);
+        _search = new LineEdit { PlaceholderText = "Find an address, e.g. 42 Road 721", ClearButtonEnabled = true };
+        _search.SetAnchorsPreset(LayoutPreset.TopRight);
+        _search.AnchorLeft = 1; _search.AnchorRight = 1;
+        _search.OffsetLeft = -360; _search.OffsetRight = -24; _search.OffsetTop = 18; _search.OffsetBottom = 52;
+        _search.TextSubmitted += Search;
+        AddChild(_search);
+    }
+
+    private void Search(string text)
+    {
+        var game = Game.Instance;
+        var entry = AddressIndex.Find(text);
+        if (entry == null || game.World == null)
+        {
+            game.Notify(text.Trim() == "" ? "Type a house number and street, e.g. 42 Road 721." : $"No address matches \"{text.Trim()}\".");
+            return;
+        }
+        game.Waypoint = game.World.Ground(entry.Centre);
+        _centre = MapImage.ToPx(entry.Centre);
+        _zoom = Mathf.Max(_zoom, 4f);
+        game.Notify($"Waypoint set: {entry.Building.Address}, {entry.Building.Suburb}.");
+        _search.ReleaseFocus();
+        QueueRedraw();
     }
 
     public void Toggle()
@@ -47,6 +72,7 @@ public partial class WorldMap : Control
             _zoom = Mathf.Max(fit, Mathf.Clamp(_zoom, fit, 8f));
         }
         Visible = !Visible;
+        if (!Visible) _search.ReleaseFocus();
         GetTree().Paused = Visible || Game.Instance.Main!.PauseMenu.IsOpen;
         Game.Instance.InputLocked = Visible || Game.Instance.Main!.PauseMenu.IsOpen || Game.Instance.Dialogue.IsActive;
         Input.MouseMode = Game.Instance.InputLocked ? Input.MouseModeEnum.Visible : Input.MouseModeEnum.Captured;
@@ -130,6 +156,19 @@ public partial class WorldMap : Control
             float w = font.GetStringSize(l.Text, HorizontalAlignment.Left, -1, size).X;
             DrawStringOutline(font, s + new Vector2(-w / 2f, size / 2f), l.Text, HorizontalAlignment.Left, -1, size, 4, new Color(0, 0, 0, 0.85f));
             DrawString(font, s + new Vector2(-w / 2f, size / 2f), l.Text, HorizontalAlignment.Left, -1, size, col);
+        }
+
+        // house numbers, only when zoomed right in
+        if (mPerScreenPx < 0.45f)
+        {
+            var numberColour = new Color(0.1f, 0.08f, 0.06f);
+            foreach (var e in AddressIndex.Entries)
+            {
+                var s = WorldToScreen(e.Centre);
+                if (s.X < -20 || s.Y < -20 || s.X > Size.X + 20 || s.Y > Size.Y + 20) continue;
+                float w = font.GetStringSize(e.Building.Number, HorizontalAlignment.Left, -1, 11).X;
+                DrawString(font, s + new Vector2(-w / 2f, 4), e.Building.Number, HorizontalAlignment.Left, -1, 11, numberColour);
+            }
         }
 
         // markers

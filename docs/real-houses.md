@@ -91,6 +91,6 @@ or replace the terrain and buildings for that area.
 ## Suggested order
 
 1. Level 1 with the NGI orthophoto, plus the roof tool. One afternoon, whole suburb.
-2. Level 2 for 721 Road and the streets you care about.
+2. Level 2 for Road 721 and the streets you care about.
 3. Level 3 for your own house, the superette, the stadium and the shopping centre.
 4. A drone survey if the project grows beyond a hobby.

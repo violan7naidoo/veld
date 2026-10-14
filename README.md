@@ -83,16 +83,18 @@ car with a "Get in" prompt is yours to take.
 
 ## What is in the world
 
-- **The streets**: 701 Road to 753 Road and the rest, 130 named roads of tar with markings, street
+- **The streets**: Road 701 to Road 753 and the rest, 130 named roads of tar with markings, street
   lights, pavements and kerbs, 420 parked cars, and precast boundary walls with gate pillars in front of
-  the houses. The HUD names the road and suburb you are in.
+  the houses. The HUD names the house, road and suburb you are standing at.
+- **Addresses**: every house and building carries its real municipal address, with the number on a
+  plate beside the front door. See [Addresses and real places](#addresses-and-real-places).
 - **Places**: Chatsworth Stadium, Chatsworth Cricket Oval, Gandhi Memorial Park, the shopping centre,
   Chatsworth Police Station, the magistrates court, the fire station, the post office, nine schools
   (Brindhavan Secondary, Arena Park Secondary, Meadowlands Technical High, and the Sunnyvale, Dawnridge,
   Belvedere, Beacon Ridge, Seven Hills and Ays Memorial primaries), filling stations, superettes, salons,
   spares shops and the animal clinic. Sports fields get goal posts, a cricket strip or basketball hoops.
 - **People**: Aunty Devi at the superette (first mission giver; her bunny chow heals you), Kyle playing
-  football, Mrs Naicker your neighbour on 721 Road, Sipho the taxi driver at the rank, Mr Ndlovu the
+  football, Mrs Naicker your neighbour on Road 721, Sipho the taxi driver at the rank, Mr Ndlovu the
   security guard at the shopping centre, Coach Naidoo at the stadium (second mission giver), Thandeka at
   the basketball court, Mr Govender the teacher at Brindhavan Secondary, Uncle Raj on his bench in
   Gandhi Memorial Park, and Constable Pillay, Sergeant Mthembu and Constable Singh of the SAPS.
@@ -101,7 +103,33 @@ car with a "Get in" prompt is yours to take.
   sight until it decays, or any officer will take an R500 admission-of-guilt fine), rands and cents,
   stamina, day and night with sun, moon, fog and sky colours, five weather states from clear to
   thunderstorm with wet roads and wind in the grass, and driving on real vehicle physics.
-- **Start**: 07:30 on 721 Road with R250, a pistol, a hunting rifle and your car parked just ahead.
+- **Start**: 07:30 on Road 721 outside number 42, your house, with R250, a pistol, a hunting rifle and
+  your car parked just ahead.
+
+## Addresses and real places
+
+Every building has the street number, street and suburb the municipality gives it: 14,169 of the
+14,405 buildings on the map, and every one inside Montford. The number hangs on a plate beside the
+front door, the HUD reads "42 Road 721, Montford" when you stand at a house and "Road 721, Montford"
+on the road, the full map shows numbers when you zoom right in, and its search box takes "42 Road
+721" (or just "42 721") and drops a waypoint on the house. Chatsworth's numbered roads are written the
+way the municipality and residents write them, "Road 721".
+
+Public places carry their real names: the schools, the temples, mosques and churches, Montford
+Library, Montford Community Hall, the Arena Park pool, the clinic, R K Khan Hospital, the shopping
+centres, the police and fire stations. Private shops still get generic signs.
+
+The data comes from eThekwini Municipality's open GIS portal (address points, zoning parcels, suburb
+boundaries and facility layers), fetched by `tools/ethekwini_fetch.py` into
+`tools/source/montford_ethekwini.json` and merged by the map converter. OpenStreetMap carries only
+four house numbers for the whole suburb, which is why the municipal data is needed. To refresh it:
+
+```
+python tools/ethekwini_fetch.py tools/source/montford_elevation.json tools/source/montford_ethekwini.json
+python tools/osm_to_map.py tools/source/montford_osm.json tools/source/montford_elevation.json data/maps/chatsworth-unit7 tools/source/montford_ethekwini.json
+```
+
+To correct one house, put `"number"` and `"street"` on its entry in `overrides.json`.
 
 ## Project layout
 
@@ -113,7 +141,7 @@ open-editor.cmd          open the project in the Godot editor
 data/
   config.json            which map folder to load
   maps/chatsworth-unit7/
-    world.json           roads, areas, buildings, lines, points of interest and settings (generated from OpenStreetMap)
+    world.json           roads, areas, buildings with addresses, lines, points of interest, suburbs and settings (generated)
     heightmap.json       elevation grid (generated)
     npcs.json            who lives where, patrols, weapons, dialogue ids
     dialogue.json        conversation trees with conditions and actions
@@ -128,6 +156,7 @@ scripts/
              Data.cs (the JSON schema)  InputSetup.cs (keys)  Layers.cs  DevSmoke.cs (automated test)
   World/     WorldBuilder.cs  Terrain.cs  RoadBuilder.cs (roads, markings, street lights, parked cars)
              FootprintBuilder.cs (houses from outlines)  Dressing.cs (fields, fences, streams, signs)
+             AddressPlates.cs (number plates by the doors)  AddressIndex.cs (which house is this, where is 42 Road 721)
              Vegetation.cs  DayNight.cs  Weather.cs  MapImage.cs (map and location names)
              Tex.cs (generated textures)  Props.cs (box/cylinder/sign helpers and the colour palette)
              TownBuilder.cs, Railway.cs (authored props; not used by this map)
@@ -136,7 +165,7 @@ scripts/
              DialogueSystem.cs  WantedSystem.cs  Interactable.cs
   UI/        Hud.cs  Minimap.cs  WorldMap.cs  DialogueBox.cs  PauseMenu.cs
   Audio/     Sfx.cs (procedural placeholder sounds)
-tools/                   Python pipeline that turns OpenStreetMap and elevation data into a map folder
+tools/                   Python pipeline that turns OpenStreetMap, elevation and eThekwini municipal data into a map folder
 docs/
   design.md              setting, tone and what to handle with care
   editing-guide.md       recipes: add a person, a conversation, a mission, a building type, swap models, etc.
@@ -168,8 +197,9 @@ Start with `docs/editing-guide.md`. The short version:
 
 The suburb is converted from OpenStreetMap and NASA SRTM elevation by the scripts in `tools/`. Map data
 © OpenStreetMap contributors, ODbL 1.0 (openstreetmap.org/copyright). Elevation: NASA SRTM via AWS
-Terrain Tiles. Google Maps imagery and data cannot be used in a game, which is why the map is built
-from OpenStreetMap; it carries the same real road layout.
+Terrain Tiles. Addresses, zoning, suburbs and public places © eThekwini Municipality, Open GIS Data
+(gis-ethekwini.opendata.arcgis.com; accuracy not guaranteed). Google Maps imagery and data cannot be
+used in a game, which is why the map is built from OpenStreetMap; it carries the same real road layout.
 
 ### How close to the real houses can it get?
 
@@ -201,13 +231,14 @@ game reads (`ortho.png` aerial photo, `overrides.json` per-house roof/wall/facad
 ### Regenerate or extend the map
 
 ```
-python tools/osm_to_map.py tools/source/montford_osm.json tools/source/montford_elevation.json data/maps/chatsworth-unit7
+python tools/osm_to_map.py tools/source/montford_osm.json tools/source/montford_elevation.json data/maps/chatsworth-unit7 tools/source/montford_ethekwini.json
 ```
 
 To map a different suburb, edit the bounding box and street-name pattern at the top of
-`tools/osm_fetch.py`, run it, fetch elevation with `tools/terrarium.py`, convert with `osm_to_map.py`
-into a new folder under `data/maps/`, copy the character files across as a start, and point
-`data/config.json` at the new folder. `docs/editing-guide.md` has the details. The quality of a map
+`tools/osm_fetch.py`, run it, fetch elevation with `tools/terrarium.py`, fetch the municipal layers
+with `tools/ethekwini_fetch.py` (anywhere inside eThekwini), convert with `osm_to_map.py` into a new
+folder under `data/maps/`, copy the character files across as a start, and point `data/config.json`
+at the new folder. `docs/editing-guide.md` has the details. The quality of a map
 depends on how well the area is mapped in OpenStreetMap; building heights and roof shapes are guessed
 from the footprint size unless the data has them.
 

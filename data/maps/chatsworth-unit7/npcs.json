@@ -3,7 +3,7 @@
   // faction "british" is the police in the modern era; "outlaw" is a gang; "boer" and "civilian" are residents.
   { "id": "aunty_devi",     "name": "Aunty Devi",          "faction": "civilian", "role": "superette owner",  "position": [28, -700],    "dialogue": "superette",   "wanderRadius": 3 },
   { "id": "kyle",           "name": "Kyle",                "faction": "civilian", "role": "teenager",         "position": [-786, -124],  "dialogue": "kyle",        "wanderRadius": 14 },
-  { "id": "mrs_naicker",    "name": "Mrs. Naicker",        "faction": "civilian", "role": "neighbour",        "position": [-640, -20],   "dialogue": "neighbour",   "wanderRadius": 8 },
+  { "id": "mrs_naicker",    "name": "Mrs. Naicker",        "faction": "civilian", "role": "neighbour",        "position": [-64, 258],    "dialogue": "neighbour",   "wanderRadius": 8 },
   { "id": "sipho",          "name": "Sipho",               "faction": "civilian", "role": "taxi driver",      "position": [1028, -690],  "dialogue": "taxi",        "wanderRadius": 6 },
   { "id": "ndlovu",         "name": "Mr. Ndlovu",          "faction": "civilian", "role": "security guard",   "position": [1010, -722],  "dialogue": "guard",       "wanderRadius": 4 },
   { "id": "coach_naidoo",   "name": "Coach Naidoo",        "faction": "civilian", "role": "football coach",   "position": [690, -1000],  "dialogue": "coach",       "wanderRadius": 10 },

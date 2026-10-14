@@ -25,6 +25,7 @@ public partial class FootprintBuilder : Node3D
     private readonly Dictionary<(int, int), List<int>> _roadGrid = new();
     private readonly List<(Vector2 c, Vector2 dir)> _placedWalls = new();
     private readonly List<Transform3D> _dishes = new();
+    private AddressPlates? _plates;
 
     private sealed class Chunk
     {
@@ -34,9 +35,10 @@ public partial class FootprintBuilder : Node3D
         private static SurfaceTool New() { var st = new SurfaceTool(); st.Begin(Mesh.PrimitiveType.Triangles); return st; }
     }
 
-    public void Build(WorldData world, Terrain terrain)
+    public void Build(WorldData world, Terrain terrain, AddressPlates? plates = null)
     {
         _terrain = terrain;
+        _plates = plates;
         ModelsPlaced = 0; FacadesPlaced = 0;
         IndexRoads(world);
 
@@ -93,7 +95,7 @@ public partial class FootprintBuilder : Node3D
             for (int i = 0; i < _dishes.Count; i++) mm.SetInstanceTransform(i, _dishes[i]);
             AddChild(new MultiMeshInstance3D { Name = "Dishes", Multimesh = mm, GIMode = GeometryInstance3D.GIModeEnum.Disabled, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
         }
-        GD.Print($"buildings: {index} footprints in {chunks.Count} chunks ({nodes} nodes), {_walls} boundary walls, {_doors} doors, {_dishes.Count} dishes, {_labels} labels, {ModelsPlaced} real models, {FacadesPlaced} facade photos");
+        GD.Print($"buildings: {index} footprints in {chunks.Count} chunks ({nodes} nodes), {_walls} boundary walls, {_doors} doors, {_plates?.Count ?? 0} number plates, {_dishes.Count} dishes, {_labels} labels, {ModelsPlaced} real models, {FacadesPlaced} facade photos");
     }
 
     // ------------------------------------------------------------------ roads (to find each house's front)
@@ -176,7 +178,7 @@ public partial class FootprintBuilder : Node3D
         string kind = b.Kind;
         bool carport = kind is "roof" or "carport";
         bool ruin = kind is "ruins" or "construction";
-        bool big = area >= 320f || kind is "school" or "commercial" or "industrial" or "retail" or "warehouse" or "stadium" or "public" or "civic" or "hospital" or "church" or "mosque" or "temple";
+        bool big = area >= 320f || kind is "school" or "commercial" or "industrial" or "retail" or "warehouse" or "stadium" or "public" or "civic" or "hospital" or "church" or "mosque" or "temple" or "place_of_worship";
         Color? wallOverride = null;
         if (b.Wall.StartsWith("#")) wallOverride = Color.FromHtml(b.Wall);
         bool brick = b.Wall == "brick" || (b.Wall == "" && !big && !carport && h1 < 35);
@@ -248,6 +250,12 @@ public partial class FootprintBuilder : Node3D
             Quad(chunk.Doors, d0, new Vector2(0, 1), d1, new Vector2(1, 1), d1 + new Vector3(0, 2.1f, 0), new Vector2(1, 0), d0 + new Vector3(0, 2.1f, 0), new Vector2(0, 0), o3, Colors.White);
             chunk.NDoors += 2;
             _doors++;
+            // the number plate hangs beside the door, on the side away from the texture's window
+            if (b.HasAddress && _plates != null)
+            {
+                var beside = dpos + edge * (h4 < 50 ? 0.95f : -0.95f);
+                _plates.Add(new Vector3(beside.X, floorY + 1.75f, beside.Y) + o3 * 0.03f, o3, b.Number);
+            }
             if (!big && hasRoad) BoundaryWall(chunk, poly, centroid, roadPt, roadDir, roadWidth, hash);
         }
 

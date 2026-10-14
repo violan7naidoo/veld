@@ -27,6 +27,14 @@ public static class MapImage
 
     private static byte[] _buf = System.Array.Empty<byte>();
 
+    /// <summary>Public places whose real names appear on the map and in the world. Private shops stay generic.</summary>
+    public static readonly HashSet<string> NamedPlaceKinds = new()
+    {
+        "police", "fire_station", "post_office", "school", "fuel", "library", "community_centre", "swimming_pool",
+        "clinic", "hospital", "shopping_centre", "townhall", "railway_station", "place_of_worship",
+        "mosque", "temple", "church", "stadium", "park",
+    };
+
     public static Vector2 ToPx(Vector2 world) => new((world.X + MapSize / 2f) / MetresPerPixel, (world.Y + MapSize / 2f) / MetresPerPixel);
     public static Vector2 ToWorld(Vector2 px) => new(px.X * MetresPerPixel - MapSize / 2f, px.Y * MetresPerPixel - MapSize / 2f);
 
@@ -129,7 +137,7 @@ public static class MapImage
         foreach (var p in w.Pois)
         {
             if (p.Kind.StartsWith("place:")) Labels.Add(new MapLabel { Text = p.Name, World = DataLoader.XZ(p.Position), Kind = 2 });
-            else if (p.Kind is "police" or "fire_station" or "post_office" or "school" or "fuel" && !string.IsNullOrEmpty(p.Name)) Labels.Add(new MapLabel { Text = p.Name, World = DataLoader.XZ(p.Position), Kind = 1 });
+            else if (NamedPlaceKinds.Contains(p.Kind) && !string.IsNullOrEmpty(p.Name)) Labels.Add(new MapLabel { Text = p.Name, World = DataLoader.XZ(p.Position), Kind = 1 });
         }
 
         var img = Image.CreateFromData(Size, Size, false, Image.Format.Rgba8, _buf);
@@ -139,7 +147,10 @@ public static class MapImage
         GD.Print($"map image: {Size}x{Size} px, {MetresPerPixel:0.00} m/px, {Labels.Count} labels");
     }
 
-    /// <summary>"721 Road, Montford" or "Welgevonden Road" or the nearest named place: what the HUD shows under the minimap.</summary>
+    /// <summary>
+    /// "188 Road 721, Risecliff" at a house, "Road 721, Risecliff" on the road, or the nearest named
+    /// place: what the HUD shows under the minimap.
+    /// </summary>
     public static string LocationName(GameData data, Vector2 xz)
     {
         string road = "";
@@ -157,20 +168,24 @@ public static class MapImage
                 if (d < bestRoad) { bestRoad = d; road = r.Name; }
             }
         }
-        string place = "";
+        string place = AddressIndex.SuburbAt(xz);
         float bestPlace = 900f;
-        foreach (var p in data.World.Pois)
-            if (p.Kind.StartsWith("place:"))
-            {
-                float d = xz.DistanceTo(DataLoader.XZ(p.Position));
-                if (d < bestPlace) { bestPlace = d; place = p.Name; }
-            }
-        foreach (var t in data.Towns)
+        if (place == "")
         {
-            float d = xz.DistanceTo(DataLoader.XZ(t.Position));
-            if (d < t.ClearRadius + 60f && d < bestPlace) { bestPlace = d; place = t.Name; }
+            foreach (var p in data.World.Pois)
+                if (p.Kind.StartsWith("place:"))
+                {
+                    float d = xz.DistanceTo(DataLoader.XZ(p.Position));
+                    if (d < bestPlace) { bestPlace = d; place = p.Name; }
+                }
+            foreach (var t in data.Towns)
+            {
+                float d = xz.DistanceTo(DataLoader.XZ(t.Position));
+                if (d < t.ClearRadius + 60f && d < bestPlace) { bestPlace = d; place = t.Name; }
+            }
         }
-        if (System.Text.RegularExpressions.Regex.IsMatch(road, "^7[0-9][0-9] Road$")) place = "Montford";
+        var house = AddressIndex.At(xz);
+        if (house != null) return house.Building.Address + (place != "" ? ", " + place : "");
         if (road != "" && place != "") return road + ", " + place;
         if (road != "") return road;
         if (place != "") return place;

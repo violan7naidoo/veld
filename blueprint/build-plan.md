@@ -23,7 +23,7 @@
 
 ## First: the real suburb
 
-- [ ] 20. **House numbers, addresses and real places** - every building gets its municipal address (eThekwini open data), plates by the door, HUD address, map numbers and search; schools, places of worship, library, hall, pool, clinics, hospital, shopping centres, stadia and parks exist with real names
+- [x] 20. **House numbers, addresses and real places** - every building gets its municipal address (eThekwini open data), plates by the door, HUD address, map numbers and search; schools, places of worship, library, hall, pool, clinics, hospital, shopping centres, stadia and parks exist with real names
 
 ## MVP: SOLID without breaking the game
 

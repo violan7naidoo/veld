@@ -130,7 +130,7 @@
     "start": "start",
     "nodes": {
       "start": {
-        "text": "You are the new one from number forty-two? Welcome to 721 Road. Rubbish is Tuesday, the water goes off when it feels like it, and if you need anything, Aunty Devi's superette is down the hill.",
+        "text": "You are the new one from number forty-two? Welcome to Road 721. Rubbish is Tuesday, the water goes off when it feels like it, and if you need anything, Aunty Devi's superette is down the hill.",
         "choices": [ { "text": "Thank you, ma'am.", "action": "end" } ]
       }
     }

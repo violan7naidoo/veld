@@ -53,8 +53,16 @@ public sealed class WorldData
     public List<FootprintData> Buildings { get; set; } = new();
     public List<LineData> Lines { get; set; } = new();
     public List<PoiData> Pois { get; set; } = new();
+    public List<SuburbData> Suburbs { get; set; } = new();
 
     public bool IsModern => Era == "modern";
+}
+
+/// <summary>A named suburb boundary from municipal data.</summary>
+public sealed class SuburbData
+{
+    public string Name { get; set; } = "";
+    public List<float[]> Polygon { get; set; } = new();
 }
 
 public sealed class RoadData
@@ -122,6 +130,14 @@ public sealed class FootprintData
     public List<float[]> Polygon { get; set; } = new();
     public string Roof { get; set; } = "";
     public string Use { get; set; } = "";
+    /// <summary>Municipal street number ("88", "309T"); empty when unknown.</summary>
+    public string Number { get; set; } = "";
+    /// <summary>Street in the form people use: "Road 723", "Rainbow Circle".</summary>
+    public string Street { get; set; } = "";
+    public string Suburb { get; set; } = "";
+    public bool HasAddress => Number != "" && Street != "";
+    /// <summary>"88 Road 723".</summary>
+    public string Address => HasAddress ? Number + " " + Street : "";
     // ---- per-house overrides (overrides.json or hand-edited here)
     /// <summary>"brick", "plaster", or a plaster colour like "#f2d9c8".</summary>
     public string Wall { get; set; } = "";
@@ -147,6 +163,8 @@ public sealed class FootprintOverride
 {
     public int? Levels { get; set; }
     public string? Kind { get; set; }
+    public string? Number { get; set; }
+    public string? Street { get; set; }
     public string? Wall { get; set; }
     public string? RoofKind { get; set; }
     public string? RoofColor { get; set; }
@@ -169,6 +187,8 @@ public sealed class PoiData
     public string Kind { get; set; } = "";
     public string Name { get; set; } = "";
     public float[] Position { get; set; } = { 0, 0 };
+    /// <summary>Empty for OpenStreetMap, "ethekwini" for municipal data.</summary>
+    public string Source { get; set; } = "";
 }
 
 public sealed class HeightmapData
@@ -346,6 +366,8 @@ public static class DataLoader
                 if (b.Id == 0 || !over.Buildings.TryGetValue(b.Id.ToString(), out var o)) continue;
                 if (o.Levels.HasValue) b.Levels = o.Levels.Value;
                 if (o.Kind != null) b.Kind = o.Kind;
+                if (o.Number != null) b.Number = o.Number;
+                if (o.Street != null) b.Street = o.Street;
                 if (o.Wall != null) b.Wall = o.Wall;
                 if (o.RoofKind != null) b.RoofKind = o.RoofKind;
                 if (o.RoofColor != null) b.RoofColor = o.RoofColor;

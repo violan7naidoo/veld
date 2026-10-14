@@ -1,13 +1,18 @@
 """Convert raw OpenStreetMap (Overpass JSON) + a Terrarium elevation grid into a Veld map folder.
 
-    python tools/osm_to_map.py tools/source/montford_osm.json tools/source/montford_elevation.json data/maps/chatsworth-unit7
+    python tools/osm_to_map.py tools/source/montford_osm.json tools/source/montford_elevation.json data/maps/chatsworth-unit7 [tools/source/montford_ethekwini.json]
 
-Writes map.json (roads, areas, buildings, lines, points of interest, world settings) and heightmap.json.
+Writes world.json (roads, areas, buildings, lines, points of interest, suburbs, world settings) and heightmap.json.
+With the optional fourth argument (from ethekwini_fetch.py) every building gets its municipal address,
+generic buildings get a kind from zoning, and real public places and suburb boundaries are added.
 Game coordinates: x = metres east of the map centre, z = metres south of it (Godot's -Z is north).
 Map data (c) OpenStreetMap contributors, ODbL 1.0. Elevation: NASA SRTM via AWS Terrain Tiles.
 """
-import json, math, os, sys
+import json, math, os, re, sys
 from collections import Counter
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import ethekwini_merge  # noqa: E402
 
 osm_path, elev_path, out_dir = sys.argv[1], sys.argv[2], sys.argv[3]
 os.makedirs(out_dir, exist_ok=True)
@@ -110,7 +115,9 @@ for el in osm["elements"]:
         pts = [p for p in pts if inside(p, 5)]
         if len(pts) < 2:
             continue
-        roads.append({"id": el["id"], "name": t.get("name", ""), "kind": kind, "width": ROAD_WIDTH.get(kind, 4),
+        # Chatsworth's numbered roads are "Road 721" to the municipality and the people who live there
+        name = re.sub(r"^(\d{3}) Road$", r"Road \1", t.get("name", ""))
+        roads.append({"id": el["id"], "name": name, "kind": kind, "width": ROAD_WIDTH.get(kind, 4),
                       "surface": t.get("surface", "asphalt" if kind not in ("track", "path", "footway", "steps") else "ground"),
                       "lit": t.get("lit", "") == "yes", "points": pts})
         kinds["road:" + kind] += 1
@@ -146,15 +153,52 @@ for el in osm["elements"]:
             pois.append({"kind": kind, "name": t.get("name", ""), "position": p})
             kinds["poi:" + kind] += 1
 
-# ------------------------------------------------------------------ spawn: on 721 Road (the longest numbered road) if present, else the map centre
+# ------------------------------------------------------------------ eThekwini municipal data (optional)
+suburbs, attribution = [], "Map data (c) OpenStreetMap contributors (ODbL). Elevation: NASA SRTM via AWS Terrain Tiles."
+if len(sys.argv) > 4:
+    eth = json.load(open(sys.argv[4], encoding="utf-8"))
+    suburbs, eth_attribution, eth_stats = ethekwini_merge.apply(eth, xz, inside, buildings, areas, pois)
+    attribution += " " + eth_attribution
+    ethekwini_merge.report(eth_stats)
+
+# ------------------------------------------------------------------ spawn: on the road outside the player's house
+# (42 Road 721, the address the dialogue uses) when the addresses are known, else the middle of Road 721,
+# else the longest residential road, else the map centre
+SPAWN_ADDRESS = ("42", "Road 721")
 spawn, facing = [0, 0], 0
-candidates = [r for r in roads if r["name"] == "721 Road"] or [r for r in roads if r["kind"] == "residential"]
-if candidates:
-    longest = max(candidates, key=lambda r: len(r["points"]))
-    mid = longest["points"][len(longest["points"]) // 2]
-    nxt = longest["points"][min(len(longest["points"]) - 1, len(longest["points"]) // 2 + 1)]
-    spawn = mid
-    facing = math.degrees(math.atan2(-(nxt[0] - mid[0]), -(nxt[1] - mid[1])))
+
+
+def heading(a, b):
+    return math.degrees(math.atan2(-(b[0] - a[0]), -(b[1] - a[1])))
+
+
+home = next((b for b in buildings if b.get("number") == SPAWN_ADDRESS[0] and b.get("street") == SPAWN_ADDRESS[1]), None)
+if home:
+    hc = [sum(p[0] for p in home["polygon"]) / len(home["polygon"]), sum(p[1] for p in home["polygon"]) / len(home["polygon"])]
+    best = None
+    for r in roads:
+        if r["name"] != SPAWN_ADDRESS[1]:
+            continue
+        for a, b in zip(r["points"], r["points"][1:]):
+            ab = (b[0] - a[0], b[1] - a[1])
+            l2 = ab[0] ** 2 + ab[1] ** 2
+            t = 0 if l2 < 0.01 else max(0.0, min(1.0, ((hc[0] - a[0]) * ab[0] + (hc[1] - a[1]) * ab[1]) / l2))
+            q = [a[0] + ab[0] * t, a[1] + ab[1] * t]
+            d = math.dist(q, hc)
+            if best is None or d < best[0]:
+                best = (d, q, a, b)
+    if best:
+        spawn = [round(best[1][0], 1), round(best[1][1], 1)]
+        facing = heading(best[2], best[3])
+        print(f"spawn outside {SPAWN_ADDRESS[0]} {SPAWN_ADDRESS[1]} ({home.get('suburb')}), {best[0]:.0f} m from the house")
+if spawn == [0, 0]:
+    candidates = [r for r in roads if r["name"] == "Road 721"] or [r for r in roads if r["kind"] == "residential"]
+    if candidates:
+        longest = max(candidates, key=lambda r: len(r["points"]))
+        mid = longest["points"][len(longest["points"]) // 2]
+        nxt = longest["points"][min(len(longest["points"]) - 1, len(longest["points"]) // 2 + 1)]
+        spawn = mid
+        facing = heading(mid, nxt)
 print(f"spawn at {spawn} facing {facing:.0f} deg")
 
 world = {
@@ -163,7 +207,7 @@ world = {
     "biome": "subtropical",
     "intro": "Montford, Chatsworth, Durban. The present day. Press E to talk, Esc for the menu.",
     "origin": {"lat": lat0, "lon": lon0, "mPerDegLat": m_lat, "mPerDegLon": m_lon},
-    "attribution": "Map data (c) OpenStreetMap contributors (ODbL). Elevation: NASA SRTM via AWS Terrain Tiles.",
+    "attribution": attribution,
     "seed": 7,
     "sizeMeters": size,
     "cellSize": 5,
@@ -190,10 +234,11 @@ world = {
     "buildings": buildings,
     "lines": lines,
     "pois": pois,
+    "suburbs": suburbs,
     "railway": {"points": [], "loop": False, "blockhouseSpacing": 0, "trainSpeed": 0, "wagons": 0},
 }
 json.dump(world, open(os.path.join(out_dir, "world.json"), "w", encoding="utf-8"), ensure_ascii=False)
-print(f"map {size} m square; roads {len(roads)}, areas {len(areas)}, buildings {len(buildings)}, lines {len(lines)}, pois {len(pois)}")
+print(f"map {size} m square; roads {len(roads)}, areas {len(areas)}, buildings {len(buildings)}, lines {len(lines)}, pois {len(pois)}, suburbs {len(suburbs)}")
 for k, v in sorted(kinds.items()):
     print(f"  {v:6d} {k}")
 total_road_m = 0.0

@@ -12,6 +12,7 @@ public partial class WorldBuilder : Node3D
     public Terrain Terrain { get; private set; } = null!;
     public Railway? Railway { get; private set; }
     public Vegetation? Vegetation { get; private set; }
+    public AddressPlates? Plates { get; private set; }
     public List<Vehicle> Vehicles { get; } = new();
     public Vehicle? PlayerCar { get; private set; }
     public Horse? Horse { get; private set; }
@@ -110,9 +111,11 @@ public partial class WorldBuilder : Node3D
         }
         if (world.Buildings.Count > 0)
         {
+            Plates = new AddressPlates { Name = "AddressPlates" };
+            AddChild(Plates);
             var footprints = new FootprintBuilder { Name = "Buildings" };
             AddChild(footprints);
-            footprints.Build(world, Terrain);
+            footprints.Build(world, Terrain, Plates);
         }
         if (world.Areas.Count > 0 || world.Lines.Count > 0 || world.Pois.Count > 0)
         {

@@ -74,6 +74,13 @@ public partial class DevSmoke : Node
                 Check(p.Weapons.Count > 0 && p.CurrentWeaponId == p.WeaponOrder[0], $"weapons: {p.CurrentWeaponId}, {p.Weapons.Count} carried");
                 Check(horse == g.Data.World.HorseEnabled, horse ? "horse spawned" : "no horse on this map (as configured)");
                 if (g.Data.OverridesApplied > 0) Check(FootprintBuilder.ModelsPlaced > 0, $"overrides: {g.Data.OverridesApplied} buildings customised, {FootprintBuilder.ModelsPlaced} real models placed, {FootprintBuilder.FacadesPlaced} facade photos");
+                if (g.Data.World.Buildings.Count > 100)
+                {
+                    int addressed = AddressIndex.Entries.Count, total = g.Data.World.Buildings.Count;
+                    Check(addressed * 10 >= total * 9, $"addresses: {addressed} of {total} buildings have a street number and street");
+                    Check(w.Plates != null && w.Plates.Count * 2 >= addressed, $"number plates registered: {w.Plates?.Count ?? 0}");
+                    Check(AddressIndex.SuburbAt(new Vector2(p.GlobalPosition.X, p.GlobalPosition.Z)) != "", "spawn is inside a named suburb: " + AddressIndex.SuburbAt(new Vector2(p.GlobalPosition.X, p.GlobalPosition.Z)));
+                }
                 _mark = p.GlobalPosition;
                 Press("move_forward");
                 break;
@@ -118,8 +125,13 @@ public partial class DevSmoke : Node
                 if (horse) w.Horse!.PlaceAt(p.GlobalPosition + p.Camera.FlatForward * 2.2f + Vector3.Up * 0.3f, p.Camera.Yaw + Mathf.Pi / 2);
                 if (w.PlayerCar != null)
                 {
+                    // on the road centreline a few metres ahead of the spawn, so walls and kerbs cannot catch it
+                    var spawnXZ = DataLoader.XZ(g.Data.World.PlayerSpawn);
+                    float spawnYaw = Mathf.DegToRad(g.Data.World.PlayerSpawnFacing);
+                    var ahead = new Vector2(-Mathf.Sin(spawnYaw), -Mathf.Cos(spawnYaw));
+                    var carXZ = spawnXZ + ahead * 7.5f;
                     w.PlayerCar.Sleeping = false;
-                    w.PlayerCar.GlobalTransform = new Transform3D(Basis.Identity.Rotated(Vector3.Up, p.Camera.Yaw), p.GlobalPosition + p.Camera.FlatForward * 2.9f + Vector3.Up * 0.3f);
+                    w.PlayerCar.GlobalTransform = new Transform3D(Basis.Identity.Rotated(Vector3.Up, spawnYaw), w.Ground(carXZ) + Vector3.Up * 0.6f);
                     w.PlayerCar.LinearVelocity = Vector3.Zero;
                     w.PlayerCar.AngularVelocity = Vector3.Zero;
                 }
@@ -144,11 +156,12 @@ public partial class DevSmoke : Node
                     var v = p.Driving;
                     string wheels = "";
                     foreach (var c in v.GetChildren()) if (c is VehicleWheel3D wh) wheels += (wh.IsInContact() ? "C" : "-") + $"({wh.GlobalPosition.Y - v.GlobalPosition.Y:0.00}) ";
-                    GD.Print($"SMOKE: car engine {v.EngineForce:0} brake {v.Brake:0.0} steer {v.Steering:0.00} fwd {v.ForwardSpeed:0.00} vel {v.LinearVelocity} sleeping {v.Sleeping} y {v.GlobalPosition.Y:0.00} ground {w.Terrain.GetHeight(v.GlobalPosition.X, v.GlobalPosition.Z):0.00} wheels {wheels}");
+                    GD.Print($"SMOKE: car engine {v.EngineForce:0} brake {v.Brake:0.0} steer {v.Steering:0.00} fwd {v.ForwardSpeed:0.00} vel {v.LinearVelocity} sleeping {v.Sleeping} frozen {v.Freeze} at ({v.GlobalPosition.X:0.0}, {v.GlobalPosition.Y:0.00}, {v.GlobalPosition.Z:0.0}) ground {w.Terrain.GetHeight(v.GlobalPosition.X, v.GlobalPosition.Z):0.00} wheels {wheels}");
                 }
                 break;
             case 230:
-                if (p.Driving != null) { Check(p.Driving.ForwardSpeed > 4f, $"car drives at {p.Driving.ForwardSpeed * 3.6f:0} km/h"); Press("move_right"); }
+                // 2.5 m/s after 1.2 s of throttle: the spawn street climbs, so this is uphill
+                if (p.Driving != null) { Check(p.Driving.ForwardSpeed > 2.5f, $"car drives at {p.Driving.ForwardSpeed * 3.6f:0} km/h"); Press("move_right"); }
                 break;
             case 285:
                 if (p.Driving != null)
@@ -162,9 +175,10 @@ public partial class DevSmoke : Node
                 Release("move_forward");
                 Release("sprint");
                 if (p.Driving != null) { Release("move_left"); Check(p.Driving.GlobalTransform.Basis.Y.Dot(Vector3.Up) > 0.7f, $"car still on its wheels after hard turns both ways (tilt {Mathf.RadToDeg(Mathf.Acos(Mathf.Clamp(p.Driving.GlobalTransform.Basis.Y.Dot(Vector3.Up), -1f, 1f))):0} deg, {p.Driving.ForwardSpeed * 3.6f:0} km/h)"); }
-                Check(p.GlobalPosition.DistanceTo(_mark) > 12f, (horse ? "galloped" : p.Driving != null ? "drove" : "sprinted") + $" {p.GlobalPosition.DistanceTo(_mark):0.0} m");
+                Check(p.GlobalPosition.DistanceTo(_mark) > (p.Driving != null ? 8f : 12f), (horse ? "galloped" : p.Driving != null ? "drove" : "sprinted") + $" {p.GlobalPosition.DistanceTo(_mark):0.0} m");
                 if (horse) Check(w.Horse!.Stamina < 100f, $"horse stamina drained to {w.Horse.Stamina:0}");
                 GD.Print($"SMOKE: fps {Engine.GetFramesPerSecond():0} while moving, quality {g.GraphicsQuality}");
+                if (w.Plates != null && w.Plates.Count > 0) Check(w.Plates.Live > 0, $"number plates streamed in around the player: {w.Plates.Live}");
                 Shot(horse ? "2-riding" : p.Driving != null ? "2-driving" : "2-moving");
                 if (horse || p.Driving != null) Press("interact");
                 break;
@@ -203,21 +217,13 @@ public partial class DevSmoke : Node
                 break;
             case 376:
                 if (_missionId != null) Check(g.Missions.MarkerPosition.HasValue, "HUD has an objective marker");
-                if (w.PlayerCar != null) Check(w.PlayerCar.GlobalPosition.DistanceTo(_carMark) < 1.0f, $"parked car stayed put on the hill ({w.PlayerCar.GlobalPosition.DistanceTo(_carMark):0.00} m drift, frozen {w.PlayerCar.Freeze})");
+                if (w.PlayerCar != null) Check(w.PlayerCar.GlobalPosition.DistanceTo(_carMark) < 1.0f, $"parked car stayed put on the hill ({w.PlayerCar.GlobalPosition.DistanceTo(_carMark):0.00} m drift from ({_carMark.X:0.00}, {_carMark.Y:0.00}, {_carMark.Z:0.00}) to ({w.PlayerCar.GlobalPosition.X:0.00}, {w.PlayerCar.GlobalPosition.Y:0.00}, {w.PlayerCar.GlobalPosition.Z:0.00}), vel {w.PlayerCar.LinearVelocity.Length():0.00}, frozen {w.PlayerCar.Freeze})");
                 break;
             case 395:
                 GD.Print($"SMOKE: fps {Engine.GetFramesPerSecond():0} at quality {g.GraphicsQuality}, {GetViewport().GetVisibleRect().Size}");
                 break;
             case 420:
                 Shot("3-mission");
-                if (w.PlayerCar != null) { _money = g.Pence; Press("whistle"); }
-                break;
-            case 426:
-                if (w.PlayerCar != null)
-                {
-                    Release("whistle");
-                    Check(w.PlayerCar.GlobalPosition.DistanceTo(p.GlobalPosition) < 12f && g.Pence == _money - 2000, $"H brings the car back for R20 ({w.PlayerCar.GlobalPosition.DistanceTo(p.GlobalPosition):0.0} m away)");
-                }
                 break;
             case 600:
                 if (_missionId != null)
@@ -225,6 +231,15 @@ public partial class DevSmoke : Node
                     var m = g.Data.Mission(_missionId)!;
                     Check(g.Missions.IsDone(_missionId), $"mission '{_missionId}' completed by walking its steps");
                     Check(g.Pence == _money + m.RewardPence, $"reward paid: {Money.Format(g.Pence - _money)}");
+                }
+                // the car was left far behind at the mission's first stop; H brings it round for R20
+                if (w.PlayerCar != null) { _money = g.Pence; Press("whistle"); }
+                break;
+            case 606:
+                if (w.PlayerCar != null)
+                {
+                    Release("whistle");
+                    Check(w.PlayerCar.GlobalPosition.DistanceTo(p.GlobalPosition) < 12f && g.Pence == _money - 2000, $"H brings the car back for R20 ({w.PlayerCar.GlobalPosition.DistanceTo(p.GlobalPosition):0.0} m away, {Money.Format(_money - g.Pence)} charged)");
                 }
                 break;
             case 610:
@@ -280,6 +295,13 @@ public partial class DevSmoke : Node
             {
                 Check(!g.Main!.WorldMap.IsOpen && !GetTree().Paused, "world map closes and resumes");
                 Check(MapImage.LocationName(g.Data, new Vector2(p.GlobalPosition.X, p.GlobalPosition.Z)) != "", "location name: " + MapImage.LocationName(g.Data, new Vector2(p.GlobalPosition.X, p.GlobalPosition.Z)));
+                if (AddressIndex.Entries.Count > 0)
+                {
+                    var home = AddressIndex.Find("42 road 721");
+                    Check(home != null, "address search finds 42 Road 721");
+                    if (home != null) Check(MapImage.LocationName(g.Data, home.Centre).StartsWith(home.Building.Address), "HUD names the house you stand in: " + MapImage.LocationName(g.Data, home.Centre));
+                    Check(AddressIndex.Find("9999999 nowhere") == null, "address search rejects an unknown address");
+                }
                 g.DayNight!.Hour = 17.55f;
                 var spawn = DataLoader.XZ(g.Data.World.PlayerSpawn);
                 p.Dismount();

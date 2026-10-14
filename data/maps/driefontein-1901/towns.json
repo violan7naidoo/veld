@@ -1,0 +1,51 @@
+[
+  // Each town: position [x,z] on the map, rotation in degrees, and buildings in the town's local frame.
+  // Building types: house, shop, hotel, courthouse, smithy, farmhouse, church, station, barracks, tent, kraal, well, hitchrail.
+  // Houses face +z; rotate 180 to face the other way. size is [width, height, depth].
+  {
+    "id": "driefontein",
+    "name": "Driefontein",
+    "position": [0, 0],
+    "rotation": 0,
+    "clearRadius": 110,
+    "buildings": [
+      { "type": "church",     "sign": "N.G. KERK",                         "offset": [-48, -34], "rotation": 0,   "size": [10, 6, 18] },
+      { "type": "shop",       "sign": "ALGEMENE HANDELAAR · S. NAIDOO & SONS", "offset": [-22, -16], "rotation": 0, "size": [11, 4, 8] },
+      { "type": "hotel",      "sign": "ROYAL HOTEL",                       "offset": [0, -16],   "rotation": 0,   "size": [15, 7, 9] },
+      { "type": "courthouse", "sign": "MAGISTRAAT · MAGISTRATE",           "offset": [22, -16],  "rotation": 0,   "size": [12, 5, 9] },
+      { "type": "smithy",     "sign": "SMITHY · GROBLER",                  "offset": [42, -16],  "rotation": 0,   "size": [8, 4, 7] },
+      { "type": "house",      "sign": "",                                  "offset": [-26, 17],  "rotation": 180, "size": [8, 4, 7] },
+      { "type": "house",      "sign": "",                                  "offset": [-10, 17],  "rotation": 180, "size": [8, 4, 7], "color": "#d9c9a8" },
+      { "type": "shop",       "sign": "APTEEK · CHEMIST",                  "offset": [8, 17],    "rotation": 180, "size": [8, 4, 7] },
+      { "type": "house",      "sign": "",                                  "offset": [26, 17],   "rotation": 180, "size": [8, 4, 7], "color": "#cfd3c7" },
+      { "type": "hitchrail",  "sign": "",                                  "offset": [10, -8],   "rotation": 0,   "size": [6, 1, 1] },
+      { "type": "well",       "sign": "",                                  "offset": [-36, 8],   "rotation": 0,   "size": [3, 3, 3] },
+      { "type": "station",    "sign": "DRIEFONTEIN",                       "offset": [0, 62],    "rotation": 0,   "size": [14, 5, 8] },
+      { "type": "barracks",   "sign": "GARRISON · 2nd BN",                 "offset": [70, 34],   "rotation": 0,   "size": [30, 4, 24] },
+      { "type": "barrels",    "offset": [-16, -9],  "rotation": 20 },
+      { "type": "crate",      "offset": [-28, -9],  "rotation": 0,   "size": [1.0, 0.9, 1.0] },
+      { "type": "wagon",      "offset": [38, 8],    "rotation": 100 },
+      { "type": "barrels",    "offset": [46, -9],   "rotation": 0 },
+      { "type": "fence",      "offset": [-52, 14],  "rotation": 0,   "size": [18, 1, 1] },
+      { "type": "fence",      "offset": [-61, 24],  "rotation": 90,  "size": [20, 1, 1] }
+    ]
+  },
+  {
+    "id": "welgevonden",
+    "name": "Welgevonden",
+    "position": [-440, -470],
+    "rotation": 20,
+    "clearRadius": 70,
+    "buildings": [
+      { "type": "farmhouse", "sign": "WELGEVONDEN", "offset": [0, 0],     "rotation": 0, "size": [11, 4, 8] },
+      { "type": "house",     "sign": "",            "offset": [-24, -8],  "rotation": 0, "size": [6, 3, 5], "color": "#c9b89a" },
+      { "type": "kraal",     "sign": "",            "offset": [26, 14],   "rotation": 0, "size": [16, 1, 16] },
+      { "type": "well",      "sign": "",            "offset": [-10, 12],  "rotation": 0, "size": [3, 3, 3] },
+      { "type": "hitchrail", "sign": "",            "offset": [9, 9],     "rotation": 0, "size": [5, 1, 1] },
+      { "type": "fence",     "offset": [0, 26],    "rotation": 0,  "size": [40, 1, 1] },
+      { "type": "fence",     "offset": [-20, 10],  "rotation": 90, "size": [32, 1, 1] },
+      { "type": "wagon",     "offset": [-16, 2],   "rotation": 70 },
+      { "type": "crate",     "offset": [6, -6],    "rotation": 30, "size": [1.0, 0.9, 1.0] }
+    ]
+  }
+]

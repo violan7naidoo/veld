@@ -1,0 +1,56 @@
+; Engine configuration file.
+; It's best edited using the editor UI and not directly,
+; since the parameters that go here are not all obvious.
+;
+; Format:
+;   [section] ; section goes between []
+;   param=value ; assign values to parameters
+
+config_version=5
+
+[application]
+
+config/name="Veld"
+config/description="An open-world frontier prototype set in South Africa during the Second Boer War, 1901. Built as an editable starting point: terrain, a dorp, a railway, horses, rifles, NPCs, missions and dialogue are all data-driven."
+run/main_scene="res://scenes/Main.tscn"
+config/features=PackedStringArray("4.7", "C#", "Forward Plus")
+config/icon="res://icon.svg"
+
+[autoload]
+
+Game="*res://scripts/Core/Game.cs"
+
+[display]
+
+window/size/viewport_width=1600
+window/size/viewport_height=900
+window/stretch/mode="canvas_items"
+window/stretch/aspect="expand"
+
+[dotnet]
+
+project/assembly_name="Veld"
+
+[layer_names]
+
+3d_physics/layer_1="terrain"
+3d_physics/layer_2="buildings"
+3d_physics/layer_3="characters"
+3d_physics/layer_4="horses"
+3d_physics/layer_5="props"
+3d_physics/layer_6="train"
+
+[rendering]
+
+renderer/rendering_method="forward_plus"
+lights_and_shadows/directional_shadow/size=4096
+lights_and_shadows/directional_shadow/soft_shadow_filter_quality=3
+lights_and_shadows/positional_shadow/soft_shadow_filter_quality=2
+anti_aliasing/quality/screen_space_aa=1
+textures/default_filters/anisotropic_filtering_level=3
+environment/ssao/quality=2
+environment/ssil/quality=2
+environment/volumetric_fog/volume_size=96
+environment/volumetric_fog/volume_depth=96
+global_illumination/sdfgi/probe_ray_count=2
+anti_aliasing/quality/msaa_3d=2

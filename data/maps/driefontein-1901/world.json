@@ -1,0 +1,41 @@
+{
+  // The map. Positions are [x, z] metres from the centre; the map is sizeMeters wide, so -800..800.
+  // Change seed for a different landscape, heightScale for hillier or flatter ground.
+  "name": "Driefontein, Cape Colony, 1901",
+  "era": "1901",
+  "biome": "karoo",
+  "intro": "Driefontein, Cape Colony. April 1901. Press E to talk, H to whistle for your horse, Esc for the menu.",
+  "seed": 1900,
+  "sizeMeters": 1600,
+  "cellSize": 4,
+  "heightScale": 55,
+
+  "playerSpawn": [-12, 66],
+  "playerSpawnFacing": 0,
+  "playerWeapons": ["mauser", "webley"],
+
+  "startHour": 7.5,
+  "dayLengthSeconds": 720,
+
+  "horseSpawnTown": "driefontein",
+  "horseSpawnOffset": [10, -5],
+  "horseName": "Vos",
+
+  "roads": [
+    { "name": "Main Street", "width": 8, "points": [[-70, 0], [70, 0]] },
+    { "name": "Station Road", "width": 5, "points": [[-20, 6], [-20, 66]] },
+    { "name": "Welgevonden Road", "width": 6, "points": [[-70, 0], [-200, -80], [-330, -300], [-430, -445]] },
+    { "name": "Eastern Road", "width": 6, "points": [[70, 0], [300, 60], [600, 220]] },
+    { "name": "Northern Track", "width": 4, "points": [[0, -40], [-30, -300], [50, -620]] }
+  ],
+
+  "railway": {
+    "points": [[-740, 80], [-350, 78], [0, 76], [350, 78], [700, 130], [750, 450], [520, 700], [-80, 730], [-600, 690], [-760, 420]],
+    "loop": true,
+    "blockhouseSpacing": 420,
+    "trainSpeed": 14,
+    "wagons": 3
+  },
+
+  "vegetation": { "trees": 2800, "rocks": 2400, "grass": 200000, "shrubs": 7000, "mounds": 300 }
+}

@@ -1,0 +1,18 @@
+[
+  // Characters are invented. Positions are absolute [x, z] metres from the map centre (x east, z south).
+  // faction "british" is the police in the modern era; "outlaw" is a gang; "boer" and "civilian" are residents.
+  { "id": "aunty_devi",     "name": "Aunty Devi",          "faction": "civilian", "role": "superette owner",  "position": [28, -700],    "dialogue": "superette",   "wanderRadius": 3 },
+  { "id": "kyle",           "name": "Kyle",                "faction": "civilian", "role": "teenager",         "position": [-786, -124],  "dialogue": "kyle",        "wanderRadius": 14 },
+  { "id": "mrs_naicker",    "name": "Mrs. Naicker",        "faction": "civilian", "role": "neighbour",        "position": [-640, -20],   "dialogue": "neighbour",   "wanderRadius": 8 },
+  { "id": "sipho",          "name": "Sipho",               "faction": "civilian", "role": "taxi driver",      "position": [1028, -690],  "dialogue": "taxi",        "wanderRadius": 6 },
+  { "id": "ndlovu",         "name": "Mr. Ndlovu",          "faction": "civilian", "role": "security guard",   "position": [1010, -722],  "dialogue": "guard",       "wanderRadius": 4 },
+  { "id": "coach_naidoo",   "name": "Coach Naidoo",        "faction": "civilian", "role": "football coach",   "position": [690, -1000],  "dialogue": "coach",       "wanderRadius": 10 },
+  { "id": "thandeka",       "name": "Thandeka",            "faction": "civilian", "role": "student",          "position": [863, -580],   "dialogue": "thandeka",    "wanderRadius": 8 },
+  { "id": "mr_govender",    "name": "Mr. Govender",        "faction": "civilian", "role": "teacher",          "position": [445, 905],    "dialogue": "teacher",     "wanderRadius": 6 },
+  { "id": "uncle_raj",      "name": "Uncle Raj",           "faction": "boer",     "role": "pensioner",        "position": [1110, -965],  "dialogue": "uncle_raj",   "wanderRadius": 6 },
+  { "id": "const_pillay",   "name": "Constable Pillay",    "faction": "british",  "role": "police",           "weapon": "pistol", "position": [1440, -752], "dialogue": "police", "wanderRadius": 5 },
+  { "id": "sgt_mthembu",    "name": "Sergeant Mthembu",    "faction": "british",  "role": "police",           "weapon": "pistol", "position": [1455, -770], "dialogue": "police",
+    "patrol": [[1455, -770], [1380, -760], [1300, -740], [1380, -760]] },
+  { "id": "const_singh",    "name": "Constable Singh",     "faction": "british",  "role": "police",           "weapon": "pistol", "position": [1035, -745], "dialogue": "police",
+    "patrol": [[1035, -745], [1000, -700], [1060, -680], [1040, -730]] }
+]

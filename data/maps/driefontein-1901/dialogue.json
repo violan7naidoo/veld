@@ -1,0 +1,269 @@
+{
+  // Each dialogue is a tree of nodes. A choice may have a "condition" (hidden unless true) and an "action" (run when chosen).
+  // conditions: mission_available:id, mission_active:id, mission_step:id:n, mission_done:id, wanted, not_wanted, money:pence
+  // actions: start_mission:id, talk_done, give_money:pence, take_money:pence, give_ammo:weapon:count, heal, sleep:hours, clear_wanted:pence, end
+  // "next" is the node to go to; leave it out (or "end") to close the conversation.
+
+  "magistrate": {
+    "speaker": "Magistrate van der Walt",
+    "start": "start",
+    "nodes": {
+      "start": {
+        "text": "Good day. You came in on the morning train? Then you are not one of the Major's men and not one of the commando's either. That makes you useful.",
+        "choices": [
+          { "text": "What's the trouble?", "condition": "mission_available:bosman", "next": "job" },
+          { "text": "I'm still after the Bosmans.", "condition": "mission_step:bosman:0", "next": "wait" },
+          { "text": "I'm still after the Bosmans.", "condition": "mission_step:bosman:1", "next": "wait" },
+          { "text": "The Bosmans won't trouble Welgevonden again.", "condition": "mission_step:bosman:2", "action": "talk_done", "next": "paid" },
+          { "text": "Anything else that needs doing?", "condition": "mission_done:bosman", "next": "after" },
+          { "text": "I'd like to settle my account with the Army.", "condition": "wanted", "next": "fine" },
+          { "text": "Good day, Magistrate.", "action": "end" }
+        ]
+      },
+      "job": {
+        "text": "The Bosman brothers. Deserters from the Free State commandos, now plain bandits. They have taken the Steyn farm at Welgevonden and shot a herdsman who would not hand over the cattle. The garrison will not ride out; the Major calls it a civil matter. I will pay fifteen pounds for the three of them, dead or in irons.",
+        "choices": [
+          { "text": "I'll do it.", "action": "start_mission:bosman", "next": "accepted" },
+          { "text": "Not my fight.", "action": "end" }
+        ]
+      },
+      "accepted": {
+        "text": "Welgevonden lies south-west, past the drift. Follow the road out of town. And mind the blockhouse sentries on the line; they shoot at anyone riding fast after dark.",
+        "choices": [ { "text": "Understood.", "action": "end" } ]
+      },
+      "wait": {
+        "text": "Then why are you standing in my office? The farm is south-west. Follow the road.",
+        "choices": [ { "text": "On my way.", "action": "end" } ]
+      },
+      "paid": {
+        "text": "Then the Colony is in your debt, and so is the Steyn family. Here is your fee, fifteen pounds, from the court chest. Try not to spend it all at the Royal.",
+        "choices": [ { "text": "Obliged.", "action": "end" } ]
+      },
+      "after": {
+        "text": "Quiet as the grave, for once. Enjoy it while it lasts. The war is not finished with this district.",
+        "choices": [ { "text": "Good day.", "action": "end" } ]
+      },
+      "fine": {
+        "text": "The Army has lodged a complaint against you. Under martial law I can make it go away, but it will cost you five pounds, and I would not test them twice.",
+        "choices": [
+          { "text": "Pay £5.", "condition": "money:1200", "action": "clear_wanted:1200", "next": "fined" },
+          { "text": "I'll take my chances.", "action": "end" }
+        ]
+      },
+      "fined": {
+        "text": "Consider it forgotten. Keep your head down and your rifle in its boot.",
+        "choices": [ { "text": "Thank you.", "action": "end" } ]
+      }
+    }
+  },
+
+  "shopkeeper": {
+    "speaker": "Mr. S. Naidoo",
+    "start": "start",
+    "nodes": {
+      "start": {
+        "text": "Welcome, welcome. Naidoo and Sons, established 1884. Coffee, candles, cartridges and anything the railway brings. What can I get you?",
+        "choices": [
+          { "text": "Twenty Mauser cartridges (2s 6d).", "condition": "money:30", "action": "take_money:30,give_ammo:mauser:20", "next": "sold" },
+          { "text": "Twelve revolver rounds (1s 6d).", "condition": "money:18", "action": "take_money:18,give_ammo:webley:12", "next": "sold" },
+          { "text": "How is business, with the war?", "next": "war" },
+          { "text": "Nothing today.", "action": "end" }
+        ]
+      },
+      "sold": {
+        "text": "Wrapped and ready. Anything else?",
+        "choices": [
+          { "text": "Twenty Mauser cartridges (2s 6d).", "condition": "money:30", "action": "take_money:30,give_ammo:mauser:20", "next": "sold" },
+          { "text": "Twelve revolver rounds (1s 6d).", "condition": "money:18", "action": "take_money:18,give_ammo:webley:12", "next": "sold" },
+          { "text": "That's all.", "action": "end" }
+        ]
+      },
+      "war": {
+        "text": "The garrison buys on credit and the burghers buy with cattle. My father came out from Madras to cut cane in Natal; I came here to sell soap. One does what one can.",
+        "choices": [ { "text": "Good luck to you.", "action": "end" } ]
+      }
+    }
+  },
+
+  "hotel": {
+    "speaker": "Mrs. O'Reilly",
+    "start": "start",
+    "nodes": {
+      "start": {
+        "text": "The Royal Hotel. Clean sheets, hot water on Tuesdays, and no politics in the dining room. A room is a shilling.",
+        "choices": [
+          { "text": "A room and a bath, please (1s).", "condition": "money:12", "action": "take_money:12,heal,sleep:8", "next": "rested" },
+          { "text": "Just passing through.", "action": "end" }
+        ]
+      },
+      "rested": {
+        "text": "You slept like the dead. Breakfast is mealie porridge; take it or leave it.",
+        "choices": [ { "text": "Thank you, ma'am.", "action": "end" } ]
+      }
+    }
+  },
+
+  "dominee": {
+    "speaker": "Ds. Malan",
+    "start": "start",
+    "nodes": {
+      "start": {
+        "text": "Peace be with you. Half my congregation is on commando and the other half is being watched by the garrison. I preach to the women and the old men and I keep my opinions in Dutch.",
+        "choices": [
+          { "text": "What do you make of the war?", "next": "war" },
+          { "text": "Peace be with you, Dominee.", "action": "end" }
+        ]
+      },
+      "war": {
+        "text": "I make funerals of it. Boer, British, the men on the farms who get no say in any of it. Go carefully, friend. Everyone here has lost someone already.",
+        "choices": [ { "text": "I will.", "action": "end" } ]
+      }
+    }
+  },
+
+  "stationmaster": {
+    "speaker": "Mr. Pillay",
+    "start": "start",
+    "nodes": {
+      "start": {
+        "text": "Cape Government Railways. The down train to De Aar is late, the up train is later, and the Army has commandeered the goods wagons. Do not stand on the line, please.",
+        "choices": [
+          { "text": "When is the next train?", "next": "train" },
+          { "text": "Thank you.", "action": "end" }
+        ]
+      },
+      "train": {
+        "text": "When it comes. The armoured train runs the loop twice a day to show the flag. Hear the whistle, step off the rails.",
+        "choices": [ { "text": "Noted.", "action": "end" } ]
+      }
+    }
+  },
+
+  "burgher": {
+    "speaker": "Oom Sarel Pretorius",
+    "start": "start",
+    "nodes": {
+      "start": {
+        "text": "Ja, I signed their oath. Hands-upper, they call me. I have a farm, a wife and six children, and no taste for sleeping in the rain with a Mauser. Judge me if you like.",
+        "choices": [
+          { "text": "Tell me about the Bosmans.", "next": "bosman" },
+          { "text": "No judgement from me, Oom.", "action": "end" }
+        ]
+      },
+      "bosman": {
+        "text": "Frikkie, Gert and Koos. They rode with the Winburg commando until the commando would not have them any more. They shoot straight; their father taught them on springbok. If you go out there, go in daylight and come from the kopje side.",
+        "choices": [ { "text": "Thanks for the warning.", "action": "end" } ]
+      }
+    }
+  },
+
+  "townsfolk_botha": {
+    "speaker": "Mrs. Botha",
+    "start": "start",
+    "nodes": {
+      "start": {
+        "text": "You are new. Everyone new is either a scout or a speculator. Which are you?",
+        "choices": [
+          { "text": "Neither. Just looking for work.", "next": "work" },
+          { "text": "Good morning, ma'am.", "action": "end" }
+        ]
+      },
+      "work": {
+        "text": "Then try the magistrate. He has a face like a wet week and money in the court chest. The sergeant at the garrison pays too, if you can stand being called 'civilian'.",
+        "choices": [ { "text": "Much obliged.", "action": "end" } ]
+      }
+    }
+  },
+
+  "transport_rider": {
+    "speaker": "Thabo Mokoena",
+    "start": "start",
+    "nodes": {
+      "start": {
+        "text": "Sixteen oxen, one wagon, and the Army pays me in paper. My people are Basotho; we have been riding transport on these roads since before there was a railway. You want to hear about the roads?",
+        "choices": [
+          { "text": "What's out there?", "next": "roads" },
+          { "text": "Another time.", "action": "end" }
+        ]
+      },
+      "roads": {
+        "text": "West road to Welgevonden, where nobody goes now. East road to the next siding. North track over the kopjes, and that is where the commandos cross at night. Keep off it after dark unless you want to be shot by both sides.",
+        "choices": [ { "text": "Thank you.", "action": "end" } ]
+      }
+    }
+  },
+
+  "townsfolk_steyn": {
+    "speaker": "Annie Steyn",
+    "start": "start",
+    "nodes": {
+      "start": {
+        "text": "Welgevonden is my father's farm. Was. My brothers are on commando, my father is in the hands of the Army, and the Bosmans sit in our kitchen. The Major says it is a civil matter.",
+        "choices": [
+          { "text": "The magistrate has asked me to deal with them.", "condition": "mission_active:bosman", "next": "hope" },
+          { "text": "The Bosmans are finished.", "condition": "mission_done:bosman", "next": "thanks" },
+          { "text": "I'm sorry.", "action": "end" }
+        ]
+      },
+      "hope": {
+        "text": "Then God go with you. There is a well behind the house, and the kraal wall is good cover. My mother is at Norvalspont, in the camp. I would like to write and tell her the house is ours again.",
+        "choices": [ { "text": "I'll do what I can.", "action": "end" } ]
+      },
+      "thanks": {
+        "text": "I heard. I will write to my mother tonight. Thank you, whoever you are.",
+        "choices": [ { "text": "Take care, Miss Steyn.", "action": "end" } ]
+      }
+    }
+  },
+
+  "sergeant": {
+    "speaker": "Sgt. Harris",
+    "start": "start",
+    "nodes": {
+      "start": {
+        "text": "Move along, civilian, this is a military post. Unless you are looking for work, in which case stand up straight.",
+        "choices": [
+          { "text": "What kind of work?", "condition": "mission_available:dispatch", "next": "job" },
+          { "text": "Still carrying your dispatch, Sergeant.", "condition": "mission_step:dispatch:0", "next": "wait" },
+          { "text": "Dispatch delivered to the blockhouse.", "condition": "mission_step:dispatch:1", "action": "talk_done", "next": "thanks" },
+          { "text": "Sergeant.", "condition": "mission_done:dispatch", "next": "after" },
+          { "text": "Good day, Sergeant.", "action": "end" }
+        ]
+      },
+      "job": {
+        "text": "The telegraph is down again, cut by the burghers most like. Take this dispatch to the blockhouse west on the line and bring back the sentry's chit. Two pounds from the regimental chest, and no questions about what is in it.",
+        "choices": [
+          { "text": "I'll take it.", "action": "start_mission:dispatch", "next": "accepted" },
+          { "text": "Find a soldier.", "action": "end" }
+        ]
+      },
+      "accepted": {
+        "text": "Follow the line west from the station. Do not gallop at the blockhouse after dark; the lads are nervous and the Lee-Enfield does not ask questions.",
+        "choices": [ { "text": "Right.", "action": "end" } ]
+      },
+      "wait": {
+        "text": "Then get on with it. West, along the line.",
+        "choices": [ { "text": "Going.", "action": "end" } ]
+      },
+      "thanks": {
+        "text": "Good man. Here is your two pounds. Do not spend it all at the Royal; Mrs. O'Reilly waters the brandy.",
+        "choices": [ { "text": "Thank you, Sergeant.", "action": "end" } ]
+      },
+      "after": {
+        "text": "Nothing for you today. Keep your nose clean and your rifle in its boot inside the town limits.",
+        "choices": [ { "text": "Sergeant.", "action": "end" } ]
+      }
+    }
+  },
+
+  "soldier": {
+    "speaker": "",
+    "start": "start",
+    "nodes": {
+      "start": {
+        "text": "Four months at this siding and I have seen one Boer, and he was selling eggs. Move along, mate.",
+        "choices": [ { "text": "Right you are.", "action": "end" } ]
+      }
+    }
+  }
+}

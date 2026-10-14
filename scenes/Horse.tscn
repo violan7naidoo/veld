@@ -1,0 +1,8 @@
+[gd_scene load_steps=2 format=3]
+
+[ext_resource type="Script" path="res://scripts/Characters/Horse.cs" id="1_horse"]
+
+[node name="Horse" type="CharacterBody3D"]
+collision_layer = 8
+collision_mask = 51
+script = ExtResource("1_horse")

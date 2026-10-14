@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <rect width="128" height="128" rx="18" fill="#2b1a0e"/>
+  <rect x="0" y="78" width="128" height="50" rx="0" fill="#b8742a"/>
+  <circle cx="92" cy="40" r="18" fill="#f2b134"/>
+  <path d="M0 84 Q30 60 60 82 T128 80 V128 H0 Z" fill="#8a5420"/>
+  <path d="M40 92 l8 -22 l8 22 z" fill="#3b2412"/>
+  <text x="64" y="118" font-family="Georgia, serif" font-size="22" font-weight="bold" fill="#f5e6c8" text-anchor="middle">VELD</text>
+</svg>

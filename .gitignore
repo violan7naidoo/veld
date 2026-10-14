@@ -1,0 +1,18 @@
+# Godot
+.godot/
+.import/
+export/
+mono_crash.*.json
+# (.import and .uid files belong in version control)
+
+# .NET
+.mono/
+bin/
+obj/
+*.user
+.vs/
+
+# Python tool caches
+__pycache__/
+
+# Saves and logs live in user://, not here

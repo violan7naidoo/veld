@@ -1,0 +1,35 @@
+[
+  // Step types: goto (position + radius), kill_group (group), talk / return (target npc id; the dialogue must use action talk_done).
+  // Completing the last step pays rewardPence (240 pence = £1). spawns are NPCs created when the mission starts.
+  {
+    "id": "bosman",
+    "title": "The Bosman Brothers",
+    "description": "Deserters turned bandits have taken the Steyn farm at Welgevonden. The magistrate wants them gone.",
+    "giver": "magistrate",
+    "rewardPence": 3600,
+    "requires": [],
+    "steps": [
+      { "type": "goto",       "objective": "Ride to Welgevonden farm, south-west along the road", "position": [-440, -470], "radius": 70 },
+      { "type": "kill_group", "objective": "Deal with the Bosman brothers",                      "group": "bosman" },
+      { "type": "return",     "objective": "Return to Magistrate van der Walt in Driefontein",    "target": "magistrate" }
+    ],
+    "spawns": [
+      { "id": "frikkie_bosman", "name": "Frikkie Bosman", "faction": "outlaw", "role": "outlaw", "weapon": "mauser", "hostile": true, "group": "bosman", "town": "welgevonden", "offset": [6, 12],   "wanderRadius": 6 },
+      { "id": "gert_bosman",    "name": "Gert Bosman",    "faction": "outlaw", "role": "outlaw", "weapon": "mauser", "hostile": true, "group": "bosman", "town": "welgevonden", "offset": [-14, 4],  "wanderRadius": 6 },
+      { "id": "koos_bosman",    "name": "Koos Bosman",    "faction": "outlaw", "role": "outlaw", "weapon": "webley", "hostile": true, "group": "bosman", "town": "welgevonden", "offset": [22, -2],  "wanderRadius": 6 }
+    ]
+  },
+  {
+    "id": "dispatch",
+    "title": "Dispatch for the Line",
+    "description": "The telegraph is cut. Carry a dispatch to the blockhouse west of the station.",
+    "giver": "sgt_harris",
+    "rewardPence": 480,
+    "requires": [],
+    "steps": [
+      { "type": "goto",   "objective": "Carry the dispatch to the blockhouse on the western line", "position": [-530, 79], "radius": 45 },
+      { "type": "return", "objective": "Report back to Sergeant Harris in Driefontein",             "target": "sgt_harris" }
+    ],
+    "spawns": []
+  }
+]

@@ -1,0 +1,4 @@
+[
+  // No authored towns on this map: the streets and buildings come from real map data (world.json).
+  // You can still add props here, e.g. { "id": "rank", "name": "", "position": [1032, -690], "rotation": 0, "clearRadius": 0, "buildings": [ { "type": "barrels", "offset": [0, 0] } ] }
+]

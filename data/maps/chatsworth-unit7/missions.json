@@ -1,0 +1,35 @@
+[
+  // Money is in cents: 15000 = R150. Step types: goto (position + radius), talk / return (target npc; their dialogue needs action talk_done), kill_group (group).
+  {
+    "id": "parcel",
+    "title": "Aunty Devi's Parcel",
+    "description": "Take a parcel of exam papers from the superette to Mr. Govender at Brindhavan Secondary.",
+    "giver": "aunty_devi",
+    "rewardPence": 15000,
+    "requires": [],
+    "steps": [
+      { "type": "goto",   "objective": "Take the parcel to Brindhavan Secondary School (south-east, past the sports fields)", "position": [445, 905], "radius": 45 },
+      { "type": "talk",   "objective": "Hand the parcel to Mr. Govender",                                                    "target": "mr_govender" },
+      { "type": "return", "objective": "Go back to Aunty Devi at the superette",                                             "target": "aunty_devi" }
+    ],
+    "spawns": []
+  },
+  {
+    "id": "stolen_kit",
+    "title": "The Stolen Kit",
+    "description": "Thieves took the under-15 team's kit and the club generator. Coach Naidoo knows where they are keeping it.",
+    "giver": "coach_naidoo",
+    "rewardPence": 80000,
+    "requires": ["parcel"],
+    "steps": [
+      { "type": "goto",       "objective": "Go to the yard behind the industrial area, north of the stadium", "position": [900, -386], "radius": 60 },
+      { "type": "kill_group", "objective": "Deal with the thieves",                                           "group": "thieves" },
+      { "type": "return",     "objective": "Tell Coach Naidoo at the stadium",                                "target": "coach_naidoo" }
+    ],
+    "spawns": [
+      { "id": "thief_1", "name": "Thief", "faction": "outlaw", "role": "thief", "weapon": "pistol", "hostile": true, "group": "thieves", "position": [905, -392], "wanderRadius": 8 },
+      { "id": "thief_2", "name": "Thief", "faction": "outlaw", "role": "thief", "weapon": "pistol", "hostile": true, "group": "thieves", "position": [888, -372], "wanderRadius": 8 },
+      { "id": "thief_3", "name": "Thief", "faction": "outlaw", "role": "thief", "weapon": "pistol", "hostile": true, "group": "thieves", "position": [918, -370], "wanderRadius": 8 }
+    ]
+  }
+]

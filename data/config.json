@@ -1,0 +1,4 @@
+{
+  // Which map to play. Each map is a folder in data/maps/ (driefontein-1901 or chatsworth-unit7).
+  "map": "chatsworth-unit7"
+}

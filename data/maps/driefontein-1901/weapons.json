@@ -1,0 +1,6 @@
+{
+  // damage per hit (player has 100 health, NPCs 100). rateOfFire in shots per second. spread in degrees (aimed / from the hip).
+  "mauser":      { "id": "mauser",      "name": "Mauser Model 1896",  "kind": "rifle",    "damage": 60, "magSize": 5,  "rateOfFire": 0.9, "reloadTime": 2.6, "spreadDegrees": 0.35, "hipSpreadDegrees": 4.0, "range": 400, "reserveAmmo": 40 },
+  "lee_enfield": { "id": "lee_enfield", "name": "Lee-Enfield Mk I",   "kind": "rifle",    "damage": 55, "magSize": 10, "rateOfFire": 1.1, "reloadTime": 3.0, "spreadDegrees": 0.5,  "hipSpreadDegrees": 4.5, "range": 350, "reserveAmmo": 50 },
+  "webley":      { "id": "webley",      "name": "Webley Mk IV",       "kind": "revolver", "damage": 35, "magSize": 6,  "rateOfFire": 2.5, "reloadTime": 2.8, "spreadDegrees": 1.2,  "hipSpreadDegrees": 5.0, "range": 60,  "reserveAmmo": 36 }
+}

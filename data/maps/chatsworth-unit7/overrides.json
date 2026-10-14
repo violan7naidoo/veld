@@ -1,0 +1,24 @@
+{
+ "buildings": {
+  "1124770932": {
+   "model": "models/example_house.tscn",
+   "modelYaw": 0,
+   "modelScale": 1
+  },
+  "1112762886": {
+   "wall": "brick",
+   "roofKind": "iron",
+   "roofColor": "#8a1c14"
+  },
+  "1124770930": {
+   "wall": "#f3d6e4",
+   "roofKind": "tile",
+   "roofColor": "#5a5a5e",
+   "levels": 2
+  },
+  "1124800277": {
+   "roofKind": "flat",
+   "roofColor": "#777777"
+  }
+ }
+}

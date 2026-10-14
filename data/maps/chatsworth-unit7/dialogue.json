@@ -1,0 +1,221 @@
+{
+  // conditions: mission_available:id, mission_active:id, mission_step:id:n, mission_done:id, wanted, not_wanted, money:cents
+  // actions: start_mission:id, talk_done, give_money:cents, take_money:cents, give_ammo:weapon:count, heal, sleep:hours, clear_wanted:cents, end
+
+  "superette": {
+    "speaker": "Aunty Devi",
+    "start": "start",
+    "nodes": {
+      "start": {
+        "text": "Hello my dear, what can I get you? Bread is fresh, the airtime machine is working again, and I make the best bunny chow this side of Higginson Highway.",
+        "choices": [
+          { "text": "A quarter bunny and a cold drink (R45).", "condition": "money:4500", "action": "take_money:4500,heal", "next": "ate" },
+          { "text": "I need a job, Aunty.", "condition": "mission_available:parcel", "next": "job" },
+          { "text": "I'm still on my way to the school with the parcel.", "condition": "mission_step:parcel:0", "next": "wait" },
+          { "text": "I'm still on my way to the school with the parcel.", "condition": "mission_step:parcel:1", "next": "wait" },
+          { "text": "Mr. Govender has the parcel.", "condition": "mission_step:parcel:2", "action": "talk_done", "next": "paid" },
+          { "text": "Anything else I can do?", "condition": "mission_done:parcel", "next": "after" },
+          { "text": "Just looking, thanks.", "action": "end" }
+        ]
+      },
+      "ate": {
+        "text": "Eat, eat. You look like you have not slept. Come back any time.",
+        "choices": [ { "text": "Thanks, Aunty.", "action": "end" } ]
+      },
+      "job": {
+        "text": "A job? Hmm. Mr. Govender at Brindhavan Secondary left his exam papers here last night and the school phones are down. Take this parcel to him, it is over past the sports fields, and I will give you R150. Don't open it.",
+        "choices": [
+          { "text": "I'll take it.", "action": "start_mission:parcel", "next": "accepted" },
+          { "text": "Not today.", "action": "end" }
+        ]
+      },
+      "accepted": {
+        "text": "Go down the road, left at the circle, and follow the signs to the school. Walk, don't run, the papers will get creased.",
+        "choices": [ { "text": "On my way.", "action": "end" } ]
+      },
+      "wait": {
+        "text": "The school is that way, my dear. South-east. Big yellow building behind the soccer field.",
+        "choices": [ { "text": "Going now.", "action": "end" } ]
+      },
+      "paid": {
+        "text": "Good, good. Here is your R150. Coach Naidoo at the stadium was asking if I knew anybody reliable. Go and see him.",
+        "choices": [ { "text": "Thank you, Aunty.", "action": "end" } ]
+      },
+      "after": {
+        "text": "Go see Coach Naidoo at the stadium. He has a problem with some skelms.",
+        "choices": [ { "text": "I will.", "action": "end" } ]
+      }
+    }
+  },
+
+  "teacher": {
+    "speaker": "Mr. Govender",
+    "start": "start",
+    "nodes": {
+      "start": {
+        "text": "You are not one of my learners. Are you looking for the office?",
+        "choices": [
+          { "text": "Aunty Devi sent me with your exam papers.", "condition": "mission_step:parcel:1", "action": "talk_done", "next": "papers" },
+          { "text": "Just passing through.", "action": "end" }
+        ]
+      },
+      "papers": {
+        "text": "My papers! I was about to set the whole grade a new test from memory. Thank you. Tell Devi I owe her a cake.",
+        "choices": [ { "text": "I'll tell her.", "action": "end" } ]
+      }
+    }
+  },
+
+  "coach": {
+    "speaker": "Coach Naidoo",
+    "start": "start",
+    "nodes": {
+      "start": {
+        "text": "If you are here for trials, under-15s are on Saturday. If you are here about the kit, then somebody finally listened.",
+        "choices": [
+          { "text": "What happened to the kit?", "condition": "mission_available:stolen_kit", "next": "job" },
+          { "text": "Still looking for your kit, Coach.", "condition": "mission_step:stolen_kit:0", "next": "wait" },
+          { "text": "Still looking for your kit, Coach.", "condition": "mission_step:stolen_kit:1", "next": "wait" },
+          { "text": "The thieves won't bother you again.", "condition": "mission_step:stolen_kit:2", "action": "talk_done", "next": "paid" },
+          { "text": "How is the team?", "condition": "mission_done:stolen_kit", "next": "after" },
+          { "text": "Just watching the game.", "action": "end" }
+        ]
+      },
+      "job": {
+        "text": "Three skelms broke into the clubhouse. Took forty shirts, the balls, and the generator we use for night practice. One of the boys saw them carry it into the scrapyard behind the industrial park, north of here. The police say they are stretched. I will give you R800 from the club account if you get it back.",
+        "choices": [
+          { "text": "I'll get it back.", "action": "start_mission:stolen_kit", "next": "accepted" },
+          { "text": "That's a job for the police.", "action": "end" }
+        ]
+      },
+      "accepted": {
+        "text": "Be careful. They are armed, and the yard has one way in. Come from the hill side if you can.",
+        "choices": [ { "text": "Understood.", "action": "end" } ]
+      },
+      "wait": {
+        "text": "North, past the industrial park. You cannot miss the scrapyard.",
+        "choices": [ { "text": "On it.", "action": "end" } ]
+      },
+      "paid": {
+        "text": "You are a legend. Here is the R800. The boys can train tonight.",
+        "choices": [ { "text": "Glad to help.", "action": "end" } ]
+      },
+      "after": {
+        "text": "Unbeaten since the kit came back. I am not saying it is you, but I am not saying it is not.",
+        "choices": [ { "text": "Ha. See you, Coach.", "action": "end" } ]
+      }
+    }
+  },
+
+  "kyle": {
+    "speaker": "Kyle",
+    "start": "start",
+    "nodes": {
+      "start": {
+        "text": "Bru, you want to play? We need one more. Teams are Montford versus the whole world.",
+        "choices": [
+          { "text": "Maybe later.", "action": "end" },
+          { "text": "Who's winning?", "next": "score" }
+        ]
+      },
+      "score": {
+        "text": "The whole world, obviously. But we have heart. And Coach Naidoo says heart is a formation.",
+        "choices": [ { "text": "Keep at it.", "action": "end" } ]
+      }
+    }
+  },
+
+  "neighbour": {
+    "speaker": "Mrs. Naicker",
+    "start": "start",
+    "nodes": {
+      "start": {
+        "text": "You are the new one from number forty-two? Welcome to 721 Road. Rubbish is Tuesday, the water goes off when it feels like it, and if you need anything, Aunty Devi's superette is down the hill.",
+        "choices": [ { "text": "Thank you, ma'am.", "action": "end" } ]
+      }
+    }
+  },
+
+  "taxi": {
+    "speaker": "Sipho",
+    "start": "start",
+    "nodes": {
+      "start": {
+        "text": "Town, Pinetown, Isipingo, Durban station. I take you anywhere, my friend, but the rank is this side and the fare is the fare.",
+        "choices": [
+          { "text": "Any news around here?", "next": "news" },
+          { "text": "Not today.", "action": "end" }
+        ]
+      },
+      "news": {
+        "text": "News? Someone cleaned out the stadium clubhouse. Took the generator. My cousin says they are selling it piece by piece from the scrapyard. Everybody knows, nobody says.",
+        "choices": [ { "text": "Thanks.", "action": "end" } ]
+      }
+    }
+  },
+
+  "guard": {
+    "speaker": "Mr. Ndlovu",
+    "start": "start",
+    "nodes": {
+      "start": {
+        "text": "Shopping centre closes at six. No loitering by the taxi rank, no skating in the parking. Otherwise, enjoy your day.",
+        "choices": [ { "text": "Will do.", "action": "end" } ]
+      }
+    }
+  },
+
+  "thandeka": {
+    "speaker": "Thandeka",
+    "start": "start",
+    "nodes": {
+      "start": {
+        "text": "I'm practising free throws until my brother fetches me. Matric is next year and this court is the only place I can think.",
+        "choices": [ { "text": "Good luck with matric.", "action": "end" } ]
+      }
+    }
+  },
+
+  "uncle_raj": {
+    "speaker": "Uncle Raj",
+    "start": "start",
+    "nodes": {
+      "start": {
+        "text": "I have sat on this bench since 1971. My father was moved here from Cato Manor when they built the units. He hated it. I grew up here and I love it. Both things are true.",
+        "choices": [
+          { "text": "Why is the park named after Gandhi?", "next": "gandhi" },
+          { "text": "Take care, Uncle.", "action": "end" }
+        ]
+      },
+      "gandhi": {
+        "text": "Because he started his work in Durban, with people like my grandfather. A memorial park in a township built by apartheid. Chatsworth is full of ironies. Sit, I have time.",
+        "choices": [ { "text": "Another day, Uncle.", "action": "end" } ]
+      }
+    }
+  },
+
+  "police": {
+    "speaker": "",
+    "start": "start",
+    "nodes": {
+      "start": {
+        "text": "Afternoon. Keep it safe out there.",
+        "choices": [
+          { "text": "I'd like to sort out my record.", "condition": "wanted", "next": "fine" },
+          { "text": "Afternoon, officer.", "action": "end" }
+        ]
+      },
+      "fine": {
+        "text": "There is a complaint against you. An admission-of-guilt fine is R500 and it goes away. Or we can do this the long way.",
+        "choices": [
+          { "text": "Pay R500.", "condition": "money:50000", "action": "clear_wanted:50000", "next": "fined" },
+          { "text": "I'll take my chances.", "action": "end" }
+        ]
+      },
+      "fined": {
+        "text": "Paid. Stay out of trouble.",
+        "choices": [ { "text": "Yes, officer.", "action": "end" } ]
+      }
+    }
+  }
+}

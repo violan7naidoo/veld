@@ -1,0 +1,21 @@
+[
+  // Who lives where. "town" + "offset" places an NPC in a town's local frame; "position" is an absolute [x,z].
+  // faction: civilian | british | boer | outlaw. weapon: a key from weapons.json (unarmed if empty).
+  // patrol: absolute [x,z] points walked in a loop. wanderRadius: how far an idle NPC strolls from home.
+  { "id": "magistrate",     "name": "Magistrate van der Walt", "faction": "civilian", "role": "magistrate",   "town": "driefontein", "offset": [22, -8],  "dialogue": "magistrate",     "wanderRadius": 3 },
+  { "id": "naidoo",         "name": "Mr. S. Naidoo",           "faction": "civilian", "role": "shopkeeper",   "town": "driefontein", "offset": [-22, -8], "dialogue": "shopkeeper",     "wanderRadius": 2 },
+  { "id": "hotelkeeper",    "name": "Mrs. O'Reilly",           "faction": "civilian", "role": "hotelkeeper",  "town": "driefontein", "offset": [-4, -8],  "dialogue": "hotel",          "wanderRadius": 3 },
+  { "id": "dominee",        "name": "Ds. Malan",               "faction": "civilian", "role": "minister",     "town": "driefontein", "offset": [-44, -18], "dialogue": "dominee",       "wanderRadius": 6 },
+  { "id": "stationmaster",  "name": "Mr. Pillay",              "faction": "civilian", "role": "stationmaster","town": "driefontein", "offset": [-6, 67],  "dialogue": "stationmaster",  "wanderRadius": 4 },
+  { "id": "oom_sarel",      "name": "Oom Sarel Pretorius",     "faction": "boer",     "role": "burgher",      "town": "driefontein", "offset": [5, -9],   "dialogue": "burgher",        "wanderRadius": 4 },
+  { "id": "mrs_botha",      "name": "Mrs. Botha",              "faction": "civilian", "role": "townsfolk",    "town": "driefontein", "offset": [-12, 8],  "dialogue": "townsfolk_botha","wanderRadius": 10 },
+  { "id": "thabo",          "name": "Thabo Mokoena",           "faction": "civilian", "role": "transport rider", "town": "driefontein", "offset": [36, 6], "dialogue": "transport_rider","wanderRadius": 6 },
+  { "id": "annie",          "name": "Annie Steyn",             "faction": "civilian", "role": "townsfolk",    "town": "driefontein", "offset": [-30, 2],  "dialogue": "townsfolk_steyn","wanderRadius": 8 },
+
+  { "id": "sgt_harris",     "name": "Sgt. Harris",   "faction": "british", "role": "sergeant", "weapon": "lee_enfield", "position": [70, 14], "dialogue": "sergeant",
+    "patrol": [[70, 14], [44, 3], [-30, 3], [-30, -6], [44, -6]] },
+  { "id": "pte_jones",      "name": "Pte. Jones",    "faction": "british", "role": "soldier",  "weapon": "lee_enfield", "town": "driefontein", "offset": [64, 22], "dialogue": "soldier", "wanderRadius": 6 },
+  { "id": "pte_oneill",     "name": "Pte. O'Neill",  "faction": "british", "role": "soldier",  "weapon": "lee_enfield", "town": "driefontein", "offset": [76, 22], "dialogue": "soldier", "wanderRadius": 6 },
+  { "id": "pte_walsh",      "name": "Pte. Walsh",    "faction": "british", "role": "soldier",  "weapon": "lee_enfield", "position": [-10, 67], "dialogue": "soldier",
+    "patrol": [[-10, 67], [10, 67]] }
+]

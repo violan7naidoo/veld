@@ -1,0 +1,38 @@
+[gd_scene load_steps=7 format=3]
+
+[sub_resource type="BoxMesh" id="walls"]
+size = Vector3(8, 3, 7)
+
+[sub_resource type="StandardMaterial3D" id="wallmat"]
+albedo_color = Color(0.93, 0.78, 0.62, 1)
+roughness = 0.9
+
+[sub_resource type="PrismMesh" id="roof"]
+size = Vector3(9.2, 2.2, 8.2)
+
+[sub_resource type="StandardMaterial3D" id="roofmat"]
+albedo_color = Color(0.45, 0.2, 0.15, 1)
+roughness = 0.8
+
+[sub_resource type="BoxMesh" id="stoep"]
+size = Vector3(4, 0.3, 2)
+
+[sub_resource type="StandardMaterial3D" id="stoepmat"]
+albedo_color = Color(0.6, 0.6, 0.6, 1)
+
+[node name="ExampleHouse" type="Node3D"]
+
+[node name="Walls" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+mesh = SubResource("walls")
+material_override = SubResource("wallmat")
+
+[node name="Roof" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4.1, 0)
+mesh = SubResource("roof")
+material_override = SubResource("roofmat")
+
+[node name="Stoep" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 4.4)
+mesh = SubResource("stoep")
+material_override = SubResource("stoepmat")

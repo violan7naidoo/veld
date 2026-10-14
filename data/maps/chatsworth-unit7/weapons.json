@@ -1,0 +1,5 @@
+{
+  // Modern-era weapons. kind "revolver" fires while the button is held (pistols), "rifle" is one shot per click.
+  "pistol":        { "id": "pistol",        "name": "9 mm pistol",    "kind": "revolver", "damage": 32, "magSize": 15, "rateOfFire": 4.0, "reloadTime": 2.0, "spreadDegrees": 1.0, "hipSpreadDegrees": 4.0, "range": 90,  "reserveAmmo": 45 },
+  "hunting_rifle": { "id": "hunting_rifle", "name": "Hunting rifle",  "kind": "rifle",    "damage": 70, "magSize": 5,  "rateOfFire": 0.8, "reloadTime": 2.8, "spreadDegrees": 0.3, "hipSpreadDegrees": 4.0, "range": 400, "reserveAmmo": 30 }
+}

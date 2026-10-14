@@ -1,16 +1,14 @@
 using System.Collections.Generic;
-using Godot;
 using Veld.Core;
+using Veld.Gameplay.Dialogue;
 
 namespace Veld.Gameplay;
 
 /// <summary>
-/// Plays a dialogue tree from data/dialogue.json through the dialogue view. Choices can be hidden by a
-/// Condition and can run an Action when picked:
-///   conditions: mission_available:id, mission_active:id, mission_step:id:n, mission_done:id, wanted, not_wanted, money:pence
-///               (several may be combined with commas; all must hold)
-///   actions:    start_mission:id, talk_done, give_money:pence, take_money:pence, give_ammo:weapon:count, heal, sleep:hours, clear_wanted:pence, end
-/// Talks to the scene only through the ports it is given, so it runs the same against fakes.
+/// Plays a dialogue tree from data/dialogue.json through the dialogue view. A choice is hidden unless every
+/// term in its Condition holds, and runs every term in its Action when picked; what each name means lives
+/// in its class under Dialogue/, found by name in the registry. Talks to the scene only through the ports
+/// it is given, so it runs the same against fakes.
 /// </summary>
 public sealed class DialogueSystem
 {
@@ -22,14 +20,20 @@ public sealed class DialogueSystem
     private readonly INotifier _notifier;
     private readonly IClock _clock;
     private readonly IDialogueView _view;
+    private readonly DialogueRegistry _registry;
 
     private DialogueData? _data;
-    private INpcView? _npc;
+    private DialogueContext? _context;
     private readonly List<DialogueChoice> _visible = new();
 
     public bool IsActive => _data != null;
 
     public DialogueSystem(GameData data, MissionManager missions, IWantedState wanted, IWorldQuery world, IEconomy economy, INotifier notifier, IClock clock, IDialogueView view)
+        : this(data, missions, wanted, world, economy, notifier, clock, view, DialogueRegistry.Builtin())
+    {
+    }
+
+    public DialogueSystem(GameData data, MissionManager missions, IWantedState wanted, IWorldQuery world, IEconomy economy, INotifier notifier, IClock clock, IDialogueView view, DialogueRegistry registry)
     {
         _gameData = data;
         _missions = missions;
@@ -39,6 +43,7 @@ public sealed class DialogueSystem
         _notifier = notifier;
         _clock = clock;
         _view = view;
+        _registry = registry;
     }
 
     public void Start(string dialogueId, INpcView npc)
@@ -49,8 +54,28 @@ public sealed class DialogueSystem
             return;
         }
         _data = data;
-        _npc = npc;
+        _context = new DialogueContext(_missions, _wanted, _world, _economy, _notifier, _clock, npc);
+        ReportUnknownNames(dialogueId, data);
         Show(data.Start);
+    }
+
+    /// <summary>A misspelt name would otherwise show a choice it should hide, or do nothing when picked.</summary>
+    private void ReportUnknownNames(string dialogueId, DialogueData data)
+    {
+        var conditions = new HashSet<string>();
+        var actions = new HashSet<string>();
+        foreach (var node in data.Nodes.Values)
+        {
+            foreach (var choice in node.Choices)
+            {
+                foreach (var term in DialogueTerm.Parse(choice.Condition))
+                    if (_registry.FindCondition(term.Name) == null && conditions.Add(term.Name))
+                        _notifier.Notify($"Dialogue '{dialogueId}' uses an unknown condition '{term.Name}'.");
+                foreach (var term in DialogueTerm.Parse(choice.Action))
+                    if (_registry.FindAction(term.Name) == null && actions.Add(term.Name))
+                        _notifier.Notify($"Dialogue '{dialogueId}' uses an unknown action '{term.Name}'.");
+            }
+        }
     }
 
     private void Show(string nodeId)
@@ -65,7 +90,7 @@ public sealed class DialogueSystem
         foreach (var c in node.Choices)
             if (Holds(c.Condition)) { _visible.Add(c); labels.Add(c.Text); }
         if (labels.Count == 0) labels.Add("(Leave)");
-        string speaker = string.IsNullOrEmpty(_data.Speaker) ? _npc?.Name ?? "" : _data.Speaker;
+        string speaker = string.IsNullOrEmpty(_data.Speaker) ? _context!.Npc.Name : _data.Speaker;
         _view.Open(speaker, node.Text, labels, Choose);
     }
 
@@ -74,76 +99,32 @@ public sealed class DialogueSystem
         if (_data == null) return;
         if (index < 0 || index >= _visible.Count) { End(); return; }
         var c = _visible[index];
-        bool ended = Apply(c.Action);
-        if (ended) return;
+        if (Apply(c.Action)) return;
         if (string.IsNullOrEmpty(c.Next) || c.Next == "end") End();
         else Show(c.Next);
     }
 
-    /// <summary>Returns true if the action closed the dialogue.</summary>
+    /// <summary>Runs each action in turn; true when one of them closed the dialogue, which skips the rest.</summary>
     private bool Apply(string action)
     {
-        if (string.IsNullOrEmpty(action)) return false;
-        foreach (var raw in action.Split(','))
+        foreach (var term in DialogueTerm.Parse(action))
         {
-            var parts = raw.Trim().Split(':');
-            switch (parts[0])
+            if (_registry.FindAction(term.Name)?.Apply(term.Args, _context!) == true)
             {
-                case "start_mission":
-                    if (parts.Length > 1) _missions.Start(parts[1]);
-                    break;
-                case "talk_done":
-                    if (_npc != null) _missions.OnTalked(_npc.Id);
-                    break;
-                case "give_money":
-                    if (parts.Length > 1 && int.TryParse(parts[1], out var give)) { _economy.Add(give); _notifier.Coins(_npc?.Position ?? Vector3.Zero); }
-                    break;
-                case "take_money":
-                    if (parts.Length > 1 && int.TryParse(parts[1], out var take)) _economy.TrySpend(take);
-                    break;
-                case "clear_wanted":
-                    if (parts.Length > 1 && int.TryParse(parts[1], out var fee))
-                    {
-                        if (_economy.TrySpend(fee)) { _wanted.ClearWanted(); _notifier.Notify("Paid " + Money.Format(fee) + ". The complaint is withdrawn."); }
-                        else _notifier.Notify("You cannot afford the fine.");
-                    }
-                    else _wanted.ClearWanted();
-                    break;
-                case "give_ammo":
-                    if (parts.Length > 2 && int.TryParse(parts[2], out var count)) _world.Player?.GiveAmmo(parts[1], count);
-                    break;
-                case "heal":
-                    _world.Player?.Heal();
-                    break;
-                case "sleep":
-                    if (parts.Length > 1 && float.TryParse(parts[1], out var hours)) _clock.Advance(hours);
-                    break;
-                case "end":
-                    End();
-                    return true;
+                End();
+                return true;
             }
         }
         return false;
     }
 
+    /// <summary>Every term must hold; a name nobody registered counts as holding.</summary>
     private bool Holds(string condition)
     {
-        if (string.IsNullOrEmpty(condition)) return true;
-        foreach (var raw in condition.Split(','))
+        foreach (var term in DialogueTerm.Parse(condition))
         {
-            var parts = raw.Trim().Split(':');
-            bool ok = parts[0] switch
-            {
-                "mission_available" => parts.Length > 1 && _missions.IsAvailable(parts[1]),
-                "mission_active" => parts.Length > 1 && _missions.IsActive(parts[1]),
-                "mission_step" => parts.Length > 2 && _missions.IsActive(parts[1]) && int.TryParse(parts[2], out var n) && _missions.StepIndex == n,
-                "mission_done" => parts.Length > 1 && _missions.IsDone(parts[1]),
-                "wanted" => _wanted.Level > 0,
-                "not_wanted" => _wanted.Level == 0,
-                "money" => parts.Length > 1 && int.TryParse(parts[1], out var p) && _economy.Pence >= p,
-                _ => true,
-            };
-            if (!ok) return false;
+            var kind = _registry.FindCondition(term.Name);
+            if (kind != null && !kind.Holds(term.Args, _context!)) return false;
         }
         return true;
     }
@@ -152,7 +133,7 @@ public sealed class DialogueSystem
     {
         if (_data == null) return;
         _data = null;
-        _npc = null;
+        _context = null;
         _view.Close();
     }
 

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Godot;
 using Veld.Core;
 using Veld.Gameplay;
+using Veld.Gameplay.Dialogue;
 using Veld.Tests.Fakes;
 using Xunit;
 
@@ -272,6 +273,60 @@ public class DialogueSystemTests
         Assert.Equal(1, _view.Closes);
 
         dialogue.OnBoxClosed();
+        Assert.Equal(1, _view.Closes);
+    }
+
+    /// <summary>A condition no shipped conversation uses, registered by a test to prove the registry is the seam.</summary>
+    private sealed class NeverCondition : IDialogueCondition
+    {
+        public string Name => "never";
+        public bool Holds(string[] args, DialogueContext context) => false;
+    }
+
+    private sealed class CountingAction : IDialogueAction
+    {
+        public int Runs { get; private set; }
+        public string Name => "count";
+        public bool Apply(string[] args, DialogueContext context)
+        {
+            Runs++;
+            return false;
+        }
+    }
+
+    [Fact]
+    public void A_condition_and_an_action_added_to_the_registry_drive_a_choice()
+    {
+        var counting = new CountingAction();
+        var registry = DialogueRegistry.Builtin().Add(new NeverCondition()).Add(counting);
+        var tree = new DialogueData
+        {
+            Speaker = "Aunty Devi", Start = "start",
+            Nodes = { ["start"] = new DialogueNode { Text = "Well?", Choices = { Choice("Hidden.", condition: "never"), Choice("Count it.", action: "count") } } },
+        };
+        var data = new GameData { Dialogues = { ["superette"] = tree } };
+        var missions = new MissionManager(data, _world, _economy, _notifier);
+        var dialogue = new DialogueSystem(data, missions, _wanted, _world, _economy, _notifier, _clock, _view, registry);
+        dialogue.Start("superette", Devi);
+
+        Assert.Equal(new[] { "Count it." }, _view.Current!.Choices);
+        dialogue.Choose(0);
+
+        Assert.Equal(1, counting.Runs);
+        Assert.False(dialogue.IsActive);
+    }
+
+    [Fact]
+    public void An_unknown_condition_or_action_is_reported_when_the_conversation_starts()
+    {
+        var dialogue = Started(Single(condition: "weather:rain", action: "dance"));
+
+        Assert.Equal(new[] { "Dialogue 'superette' uses an unknown condition 'weather'.", "Dialogue 'superette' uses an unknown action 'dance'." }, _notifier.Messages);
+        Assert.Equal(new[] { "Do it." }, _view.Current!.Choices);
+
+        dialogue.Choose(0);
+
+        Assert.False(dialogue.IsActive);
         Assert.Equal(1, _view.Closes);
     }
 }

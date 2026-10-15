@@ -26,8 +26,17 @@ public partial class CameraRig : Node3D
     private Camera3D _camera = null!;
     private Vector3 _smoothed;
     private float _shoulder;
+    private Settings _settings = null!;
+    private UiState _ui = null!;
 
     public Camera3D Camera => _camera;
+
+    /// <summary>Call before adding to the tree.</summary>
+    public void Init(Settings settings, UiState ui)
+    {
+        _settings = settings;
+        _ui = ui;
+    }
 
     public override void _Ready()
     {
@@ -42,13 +51,13 @@ public partial class CameraRig : Node3D
 
     public override void _UnhandledInput(InputEvent @event)
     {
-        if (Game.Instance.InputLocked || Input.MouseMode != Input.MouseModeEnum.Captured) return;
+        if (_ui.InputLocked || Input.MouseMode != Input.MouseModeEnum.Captured) return;
         if (@event is InputEventMouseMotion m)
         {
             _mouseIdle = 0f;
-            float s = Game.Instance.MouseSensitivity * (Aiming ? 0.55f : 1f);
+            float s = _settings.MouseSensitivity * (Aiming ? 0.55f : 1f);
             Yaw -= m.Relative.X * s;
-            Pitch -= m.Relative.Y * s * (Game.Instance.InvertY ? -1f : 1f);
+            Pitch -= m.Relative.Y * s * (_settings.InvertY ? -1f : 1f);
             Pitch = Mathf.Clamp(Pitch, -1.2f, 0.9f);
         }
     }

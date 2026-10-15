@@ -48,6 +48,23 @@ public partial class Player : CharacterBody3D, IPlayerView
     private const float SprintSpeed = 6.6f;
     private const float JumpSpeed = 4.6f;
     private const float Gravity = 9.8f;
+    private Main _main = null!;
+    private GameData _data = null!;
+    private Purse _purse = null!;
+    private Notifier _notifier = null!;
+    private UiState _ui = null!;
+    private WantedSystem _wanted = null!;
+
+    /// <summary>Call between Instantiate and AddChild; _Ready reads the weapon list from the data.</summary>
+    public void Init(Main main, GameData data, Purse purse, Notifier notifier, UiState ui, WantedSystem wanted)
+    {
+        _main = main;
+        _data = data;
+        _purse = purse;
+        _notifier = notifier;
+        _ui = ui;
+        _wanted = wanted;
+    }
 
     public override void _Ready()
     {
@@ -59,9 +76,8 @@ public partial class Player : CharacterBody3D, IPlayerView
         FloorMaxAngle = Mathf.DegToRad(50f);
         FloorSnapLength = 0.4f;
 
-        var data = Game.Instance.Data;
-        foreach (var id in data.World.PlayerWeapons)
-            if (data.Weapons.TryGetValue(id, out var wd))
+        foreach (var id in _data.World.PlayerWeapons)
+            if (_data.Weapons.TryGetValue(id, out var wd))
             {
                 Weapons[id] = new Weapon(wd);
                 WeaponOrder.Add(id);
@@ -106,7 +122,7 @@ public partial class Player : CharacterBody3D, IPlayerView
         CollisionMask = 0;
         Velocity = Vector3.Zero;
         Camera.TargetOffset = new Vector3(0, 2.1f, 0);
-        Game.Instance.Hud?.SetPrompt("");
+        _main.Hud.SetPrompt("");
     }
 
     public void Dismount()
@@ -141,7 +157,7 @@ public partial class Player : CharacterBody3D, IPlayerView
         Camera.BaseLength = 7f;
         Camera.FollowYaw = true;
         Camera.Exclude(v.GetRid());
-        Game.Instance.Hud?.SetPrompt("");
+        _main.Hud.SetPrompt("");
     }
 
     public void ExitVehicle()
@@ -171,8 +187,8 @@ public partial class Player : CharacterBody3D, IPlayerView
         if (IsDead) return;
         Health -= amount;
         _sinceHit = 0f;
-        Game.Instance.Main?.Sfx.Hit(GlobalPosition);
-        Game.Instance.Hud?.FlashDamage();
+        _main.Sfx.Hit(GlobalPosition);
+        _main.Hud.FlashDamage();
         if (Health <= 0) Die();
     }
 
@@ -181,8 +197,8 @@ public partial class Player : CharacterBody3D, IPlayerView
         if (DeadEyeActive == on) return;
         DeadEyeActive = on;
         Engine.TimeScale = on ? 0.3 : 1.0;
-        if (Game.Instance.DayNight != null) Game.Instance.DayNight.DeadEye = on;
-        Game.Instance.Main?.Sfx.Click(GlobalPosition);
+        _main.DayNight.DeadEye = on;
+        _main.Sfx.Click(GlobalPosition);
     }
 
     private void Die()
@@ -196,7 +212,7 @@ public partial class Player : CharacterBody3D, IPlayerView
         Camera.Aiming = false;
         _model.SetDead(true);
         _deadTimer = 4f;
-        Game.Instance.Notify("You are dead.");
+        _notifier.Notify("You are dead.");
     }
 
     private void Respawn()
@@ -205,16 +221,16 @@ public partial class Player : CharacterBody3D, IPlayerView
         Health = MaxHealth;
         Stamina = 100f;
         _model.SetDead(false);
-        Game.Instance.Wanted.SetLevel(0);
-        int loss = Mathf.Min(Game.Instance.Pence, 2 * Money.Shilling);
-        if (loss > 0) Game.Instance.AddMoney(-loss);
-        var world = Game.Instance.Data.World;
+        _wanted.SetLevel(0);
+        int loss = Mathf.Min(_purse.Pence, 2 * Money.Shilling);
+        if (loss > 0) _purse.Add(-loss);
+        var world = _data.World;
         var spawn = DataLoader.XZ(world.PlayerSpawn);
-        var terrain = Game.Instance.World!.Terrain;
+        var terrain = _main.World.Terrain;
         GlobalPosition = new Vector3(spawn.X, terrain.GetHeight(spawn.X, spawn.Y) + 1f, spawn.Y);
         Velocity = Vector3.Zero;
         foreach (var w in Weapons.Values) if (w.InMag == 0 && w.Reserve == 0) w.Reserve = w.Data.MagSize * 2;
-        Game.Instance.Notify("You come to at the station. The doctor took " + Money.Format(loss) + " for his trouble.");
+        _notifier.Notify("You come to at the station. The doctor took " + Money.Format(loss) + " for his trouble.");
     }
 
     // ------------------------------------------------------------------ main loop
@@ -222,7 +238,6 @@ public partial class Player : CharacterBody3D, IPlayerView
     public override void _PhysicsProcess(double delta)
     {
         float dt = (float)delta;
-        var game = Game.Instance;
         foreach (var w in Weapons.Values) w.Tick(dt);
         if (_restoreCollision)
         {
@@ -243,7 +258,7 @@ public partial class Player : CharacterBody3D, IPlayerView
         _sinceHit += dt;
         if (_sinceHit > 6f && Health < MaxHealth) { _regen += dt * 4f; if (_regen >= 1f) { Health = Mathf.Min(MaxHealth, Health + (int)_regen); _regen -= (int)_regen; } }
 
-        bool locked = game.InputLocked;
+        bool locked = _ui.InputLocked;
         var move = locked ? Vector2.Zero : Input.GetVector("move_left", "move_right", "move_forward", "move_back");
         bool sprint = !locked && Input.IsActionPressed("sprint");
         Aiming = !locked && Input.IsActionPressed("aim") && CurrentWeapon != null;
@@ -289,8 +304,8 @@ public partial class Player : CharacterBody3D, IPlayerView
 
         if (!locked && Input.IsActionJustPressed("whistle"))
         {
-            if (game.World?.Horse != null) game.World.Horse.Whistle(this);
-            else if (game.World?.PlayerCar != null && Driving == null) game.World.PlayerCar.RecallTo(this);
+            if (_main.World.Horse != null) _main.World.Horse.Whistle(this);
+            else if (_main.World.PlayerCar != null && Driving == null) _main.World.PlayerCar.RecallTo(this);
         }
         if (!locked && Input.IsActionPressed("shoot")) TryShoot();
     }
@@ -303,7 +318,7 @@ public partial class Player : CharacterBody3D, IPlayerView
         if (Input.IsActionJustPressed("weapon_2") && WeaponOrder.Count > 1) Equip(WeaponOrder[1]);
         if (Input.IsActionJustPressed("holster")) Equip(null);
         if (Input.IsActionJustPressed("reload") && CurrentWeapon != null && CurrentWeapon.StartReload())
-            Game.Instance.Main?.Sfx.Click(GlobalPosition);
+            _main.Sfx.Click(GlobalPosition);
     }
 
     private void Walk(Vector2 move, bool sprint, bool jump, float dt)
@@ -336,15 +351,14 @@ public partial class Player : CharacterBody3D, IPlayerView
         _model.Animate(Speed, dt);
 
         _footstep += Speed * dt;
-        if (_footstep > 2.2f && IsOnFloor()) { _footstep = 0f; Game.Instance.Main?.Sfx.Step(GlobalPosition); }
+        if (_footstep > 2.2f && IsOnFloor()) { _footstep = 0f; _main.Sfx.Step(GlobalPosition); }
     }
 
     private void UpdateFocus()
     {
         IInteractable? best = null;
         float bestScore = float.MaxValue;
-        var world = Game.Instance.World;
-        if (world == null) return;
+        var world = _main.World;
         var eye = GlobalPosition + new Vector3(0, 1.4f, 0);
         var fwd = Camera.FlatForward;
         void Consider(Node3D node, IInteractable it, float reach = 3.2f)
@@ -361,7 +375,7 @@ public partial class Player : CharacterBody3D, IPlayerView
         if (world.Horse != null) Consider(world.Horse, world.Horse);
         foreach (var v in world.Vehicles) if (v.GlobalPosition.DistanceTo(GlobalPosition) < 8f) Consider(v, v, 4.8f);
         Focus = best;
-        Game.Instance.Hud?.SetPrompt(best == null ? "" : "[E] " + best.Prompt);
+        _main.Hud.SetPrompt(best == null ? "" : "[E] " + best.Prompt);
     }
 
     private void TryShoot()
@@ -372,8 +386,8 @@ public partial class Player : CharacterBody3D, IPlayerView
         {
             if (w.InMag == 0 && !w.Reloading && Input.IsActionJustPressed("shoot"))
             {
-                if (!w.StartReload()) Game.Instance.Notify("Out of ammunition for the " + w.Data.Name + ".");
-                else Game.Instance.Main?.Sfx.Click(GlobalPosition);
+                if (!w.StartReload()) _notifier.Notify("Out of ammunition for the " + w.Data.Name + ".");
+                else _main.Sfx.Click(GlobalPosition);
             }
             return;
         }
@@ -385,8 +399,8 @@ public partial class Player : CharacterBody3D, IPlayerView
         var origin = Camera.AimOrigin + Camera.AimDirection * 0.5f;
         var shot = w.Fire(this, origin, Camera.AimDirection, Weapon.HitSpread(w.Data, Aiming), exclude);
         ShotEffects.Show(GetParent(), shot, _model.MuzzleWorld);
-        Game.Instance.Main?.Sfx.Gunshot(w.Data.Kind, GlobalPosition);
-        Game.Instance.Wanted.OnGunfire(GlobalPosition, null);
+        _main.Sfx.Gunshot(w.Data.Kind, GlobalPosition);
+        _wanted.OnGunfire(GlobalPosition, null);
         if (shot.Hit && shot.Collider is Npc npc) npc.TakeDamage(w.Data.Damage, this);
         else if (shot.Hit && shot.Collider is Horse horse) horse.Spook();
         Camera.Pitch += 0.012f * (w.Data.Kind == "rifle" ? 1.6f : 1f);

@@ -49,10 +49,12 @@ public partial class Main : Node3D
         AddressIndex.Build(game.Data.World);
 
         Camera = new CameraRig { Name = "CameraRig" };
+        Camera.Init(game.Settings, game.Ui);
         AddChild(Camera);
 
         Player = GD.Load<PackedScene>("res://scenes/Player.tscn").Instantiate<Player>();
         Player.Name = "Player";
+        Player.Init(this, game.Data, game.Purse, game.Notifier, game.Ui, game.Wanted);
         var spawn = DataLoader.XZ(game.Data.World.PlayerSpawn);
         Player.Position = new Vector3(spawn.X, World.Terrain.GetHeight(spawn.X, spawn.Y) + 1.0f, spawn.Y);
         Player.Rotation = new Vector3(0, Mathf.DegToRad(game.Data.World.PlayerSpawnFacing), 0);

@@ -1,7 +1,6 @@
 using Godot;
 using Veld.Characters;
 using Veld.Gameplay;
-using Veld.UI;
 using Veld.World;
 
 namespace Veld.Core;
@@ -29,7 +28,6 @@ public partial class Game : Node
 
     public Main? Main { get; private set; }
     public Player? Player => Main?.Player;
-    public Hud? Hud => Main?.Hud;
     public WorldBuilder? World => Main?.World;
     public DayNight? DayNight => Main?.DayNight;
 
@@ -75,8 +73,6 @@ public partial class Game : Node
     public void AddMoney(int pence) => Purse.Add(pence);
     public bool TrySpend(int pence) => Purse.TrySpend(pence);
     public void Notify(string message) => Notifier.Notify(message);
-    public float MouseSensitivity { get => Settings.MouseSensitivity; set => Settings.MouseSensitivity = value; }
-    public bool InvertY { get => Settings.InvertY; set => Settings.InvertY = value; }
     public Quality GraphicsQuality { get => Settings.GraphicsQuality; set => Settings.GraphicsQuality = value; }
     public bool InputLocked { get => Ui.InputLocked; set => Ui.InputLocked = value; }
     public const string SavePath = SaveGame.Path;

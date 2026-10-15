@@ -22,6 +22,24 @@ _Avoid_: update, frame, step (a mission step is something else)
 Game time as hour of day and day number. A game day lasts the map's `dayLengthSeconds` of ticks; the sky, lamps and the HUD clock render it, and sleeping advances it.
 _Avoid_: day-night (that is the renderer), world time, time of day
 
+## Characters
+
+**Brain**:
+The decisions of one character inside the simulation: hostility, its state (idle, wander, patrol, chase, attack, flee, dead), targets, when to shoot and what a search of the body yields. It is created by the simulation and never touches the engine.
+_Avoid_: AI, controller, behaviour tree
+
+**Body**:
+The character's node in the scene: physics, animation, the raycast for a shot and the effects. It reports its senses to the brain every physics frame and carries out the brain's intent.
+_Avoid_: actor, entity, the NPC (ambiguous between body and brain)
+
+**Senses**:
+What a body reports to its brain in one tick: where it and the player are, whether the player is in sight, how fast it is actually moving, and whether its weapon can fire.
+_Avoid_: perception, observation, input
+
+**Intent**:
+What a brain asks its body to do in one tick: which way to face, how fast to move, whether to fire or reload, whether to rest or show its name.
+_Avoid_: command, action, output
+
 ## Rules
 
 - **Be opinionated.** When multiple words exist for the same concept, pick the

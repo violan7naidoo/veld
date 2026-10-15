@@ -4,8 +4,6 @@ using Veld.Characters;
 using Veld.Core;
 using Veld.Gameplay;
 using Veld.Sim;
-using Veld.Sim.Dialogue;
-using Veld.Sim.Missions;
 
 namespace Veld.World;
 
@@ -27,25 +25,17 @@ public partial class WorldBuilder : Node3D
 
     private GameData _data = null!;
     private Main _main = null!;
-    private Purse _purse = null!;
-    private Reputation _reputation = null!;
+    private Simulation _sim = null!;
     private Notifier _notifier = null!;
-    private MissionManager _missions = null!;
-    private DialogueSystem _dialogue = null!;
-    private WantedSystem _wanted = null!;
     private readonly PackedScene _npcScene = GD.Load<PackedScene>("res://scenes/Npc.tscn");
     private readonly PackedScene _horseScene = GD.Load<PackedScene>("res://scenes/Horse.tscn");
 
     /// <summary>Call before Build; every character and vehicle this builder spawns is given these.</summary>
-    public void Init(Main main, Purse purse, Reputation reputation, Notifier notifier, MissionManager missions, DialogueSystem dialogue, WantedSystem wanted)
+    public void Init(Main main, Simulation sim, Notifier notifier)
     {
         _main = main;
-        _purse = purse;
-        _reputation = reputation;
+        _sim = sim;
         _notifier = notifier;
-        _missions = missions;
-        _dialogue = dialogue;
-        _wanted = wanted;
     }
 
     public void Build(GameData data)
@@ -199,7 +189,7 @@ public partial class WorldBuilder : Node3D
     public Vehicle AddVehicle(string kind, Color paint, Vector3 position, float yaw)
     {
         var v = Vehicle.Create(kind, paint);
-        v.Init(_main, _purse, _notifier);
+        v.Init(_main, _sim.Purse, _notifier);
         v.Position = position;
         v.Rotation = new Vector3(0, yaw, 0);
         AddChild(v);
@@ -236,7 +226,7 @@ public partial class WorldBuilder : Node3D
         var npc = _npcScene.Instantiate<Npc>();
         npc.Name = "Npc_" + data.Id;
         npc.Data = data;
-        npc.Init(_main, _data, _purse, _reputation, _notifier, _missions, _dialogue, _wanted);
+        npc.Init(_main, _data, _sim.CreateBrain(data, npc), _sim.Dialogue);
         npc.Position = Resolve(data.Position, data.Town, data.Offset) + new Vector3(0, 1.0f, 0);
         AddChild(npc);
         Npcs.Add(npc);

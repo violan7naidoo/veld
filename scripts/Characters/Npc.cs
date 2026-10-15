@@ -2,26 +2,26 @@ using Godot;
 using Veld.Core;
 using Veld.Gameplay;
 using Veld.Sim;
+using Veld.Sim.Characters;
 using Veld.Sim.Dialogue;
-using Veld.Sim.Missions;
 
 namespace Veld.Characters;
 
 /// <summary>
-/// Everyone who is not the player: townsfolk, burghers, British soldiers and outlaws. A small state
-/// machine (idle, wander, patrol, chase, attack, flee, dead) driven by faction hostility. Armed NPCs
-/// shoot back with the same Weapon class the player uses. Talkable NPCs implement IInteractable and
-/// open their dialogue from data/dialogue.json.
+/// Body and view of one character who is not the player: the capsule, the model and label, gravity and
+/// steering, the sight and shot raycasts with their effects, and the dialogue it opens. Every physics
+/// frame it tells its NpcBrain what it senses and carries out the brain's intent; the brain decides
+/// hostility, what a hit does, when to run, when to shoot and what a search of the body yields.
 /// </summary>
 public partial class Npc : CharacterBody3D, IInteractable, INpcView
 {
     public NpcData Data { get; set; } = new();
-    public Faction Faction { get; private set; }
-    public int Health { get; private set; } = 100;
-    public bool IsDead { get; private set; }
+    public NpcBrain Brain { get; private set; } = null!;
+    public Faction Faction => Brain.Faction;
+    public int Health => Brain.Health;
+    public bool IsDead => Brain.IsDead;
     public Weapon? Weapon { get; private set; }
-    /// <summary>Set when the player attacks this NPC (or its group); armed NPCs then fight regardless of faction.</summary>
-    public bool Provoked { get; set; }
+    public bool Provoked { get => Brain.Provoked; set => Brain.Provoked = value; }
 
     // the gameplay systems see this character through INpcView; explicit so Node.Name stays Godot's
     string INpcView.Id => Data.Id;
@@ -29,48 +29,25 @@ public partial class Npc : CharacterBody3D, IInteractable, INpcView
     string INpcView.Group => Data.Group;
     Vector3 INpcView.Position => GlobalPosition;
 
-    private enum State { Idle, Wander, Patrol, Chase, Attack, Flee, Dead }
-    private State _state = State.Idle;
-
     private HumanoidModel _model = null!;
     private Label3D _label = null!;
-    private Vector3 _home;
-    private Vector3 _target;
-    private float _wait;
-    private int _patrolIndex;
-    private float _stuck;
-    private float _lostTimer;
-    private float _reactTimer;
-    private float _fleeTimer;
-    private bool _looted;
     private bool _pendingDead;
     private const float Gravity = 9.8f;
-    private const float WalkSpeed = 1.6f, RunSpeed = 5.2f;
     private Main _main = null!;
     private GameData _data = null!;
-    private Purse _purse = null!;
-    private Reputation _reputation = null!;
-    private Notifier _notifier = null!;
-    private MissionManager _missions = null!;
     private DialogueSystem _dialogue = null!;
-    private WantedSystem _wanted = null!;
 
     /// <summary>Call between Instantiate and AddChild; _Ready reads the weapon from the data.</summary>
-    public void Init(Main main, GameData data, Purse purse, Reputation reputation, Notifier notifier, MissionManager missions, DialogueSystem dialogue, WantedSystem wanted)
+    public void Init(Main main, GameData data, NpcBrain brain, DialogueSystem dialogue)
     {
         _main = main;
         _data = data;
-        _purse = purse;
-        _reputation = reputation;
-        _notifier = notifier;
-        _missions = missions;
+        Brain = brain;
         _dialogue = dialogue;
-        _wanted = wanted;
     }
 
     public override void _Ready()
     {
-        Faction = Factions.Parse(Data.Faction);
         int variant = 0;
         foreach (char c in Data.Id) variant += c;
         AddChild(new CollisionShape3D { Shape = new CapsuleShape3D { Radius = 0.32f, Height = 1.8f }, Position = new Vector3(0, 0.9f, 0) });
@@ -95,10 +72,7 @@ public partial class Npc : CharacterBody3D, IInteractable, INpcView
         };
         AddChild(_label);
 
-        _home = GlobalPosition;
-        _target = _home;
-        _state = Data.Patrol.Count > 1 ? State.Patrol : State.Idle;
-        _wait = (float)GD.RandRange(0.5, 4.0);
+        Brain.Settle(GlobalPosition);
         if (_pendingDead) MarkDeadSilently();
     }
 
@@ -108,217 +82,91 @@ public partial class Npc : CharacterBody3D, IInteractable, INpcView
 
     public bool CanInteract(Player player)
     {
-        if (IsDead) return !_looted;
-        return !string.IsNullOrEmpty(Data.Dialogue) && !IsHostileTo(player) && _state != State.Flee;
+        if (IsDead) return !Brain.Looted;
+        return !string.IsNullOrEmpty(Data.Dialogue) && !IsHostileTo(player) && Brain.State != NpcState.Flee;
     }
 
     public void Interact(Player player)
     {
-        if (IsDead)
-        {
-            _looted = true;
-            int pence = Faction == Faction.Outlaw ? GD.RandRange(18, 60) : GD.RandRange(1, 9);
-            if (Faction != Faction.Outlaw) _reputation.Lose(1);
-            _purse.Add(pence);
-            _main.Sfx.Coins(GlobalPosition);
-            _notifier.Notify("You find " + Money.Format(pence) + " on " + Data.Name + ".");
-            return;
-        }
+        if (IsDead) { Brain.Loot(); return; }
         _dialogue.Start(Data.Dialogue, this);
     }
 
     // ------------------------------------------------------------------ hostility
 
-    public bool IsHostileTo(Player player)
-    {
-        if (IsDead) return false;
-        if (Data.Hostile || Faction == Faction.Outlaw) return true;
-        if (Provoked && Weapon != null) return true;
-        return Faction switch
-        {
-            Faction.British => _wanted.Level > 0,
-            Faction.Boer => _reputation.ResidentsHostile,
-            _ => false,
-        };
-    }
+    public bool IsHostileTo(Player player) => Brain.IsHostile;
 
     public void TakeDamage(int amount, Node? attacker)
     {
         if (IsDead) return;
-        Health -= amount;
-        bool killed = Health <= 0;
-        if (attacker is Player p)
-        {
-            Provoked = true;
-            if (!string.IsNullOrEmpty(Data.Group))
-                foreach (var n in _main.World.Group(Data.Group)) n.Provoked = true;
-            _wanted.ReportAttack(this, p, killed);
-            if (Faction is Faction.Civilian or Faction.Boer) _reputation.Lose(killed ? 2 : 1);
-            if (Weapon == null) StartFlee(p.GlobalPosition);
-            else _reactTimer = 0.2f;
-        }
-        if (killed) Die();
+        var from = attacker is Node3D a ? a.GlobalPosition : GlobalPosition;
+        if (Brain.TakeDamage(amount, attacker as Player, from)) Die();
     }
 
     private void Die()
     {
-        IsDead = true;
-        Health = 0;
-        _state = State.Dead;
         _model.SetDead(true);
         _label.Visible = false;
         CollisionLayer = 0;
         CollisionMask = Layers.Terrain;
         Velocity = Vector3.Zero;
         _main.World.DeadNpcs.Add(Data.Id);
-        _missions.OnNpcKilled(this);
     }
 
     /// <summary>Used when loading a save: the NPC is already dead, no effects, no mission events.</summary>
     public void MarkDeadSilently()
     {
         if (_model == null) { _pendingDead = true; return; }
-        IsDead = true;
-        Health = 0;
-        _state = State.Dead;
-        _looted = true;
+        Brain.MarkDeadSilently();
         _model.SetDead(true);
         _label.Visible = false;
         CollisionLayer = 0;
         CollisionMask = Layers.Terrain;
     }
 
-    public void Alert(Vector3 from)
-    {
-        if (IsDead) return;
-        if (Weapon == null && Faction != Faction.Outlaw) StartFlee(from);
-    }
-
-    private void StartFlee(Vector3 from)
-    {
-        _state = State.Flee;
-        _fleeTimer = 8f;
-        var away = (GlobalPosition - from); away.Y = 0;
-        if (away.LengthSquared() < 0.01f) away = Vector3.Forward;
-        _target = GlobalPosition + away.Normalized() * 40f;
-    }
+    public void Alert(Vector3 from) => Brain.Alert(from);
 
     // ------------------------------------------------------------------ loop
 
     public override void _PhysicsProcess(double delta)
     {
         float dt = (float)delta;
-        if (IsDead)
-        {
-            Velocity = new Vector3(0, IsOnFloor() ? 0 : Velocity.Y - Gravity * dt, 0);
-            MoveAndSlide();
-            return;
-        }
+        if (IsDead) { Rest(dt); return; }
         Weapon?.Tick(dt);
         var player = _main.Player;
-        var toPlayer = player.GlobalPosition - GlobalPosition;
-        float dist = toPlayer.Length();
-        _label.Visible = dist < 14f && !IsHostileTo(player);
-        if (dist > 220f && _state is State.Idle or State.Wander or State.Patrol)
-        {
-            // far away: do not simulate, just rest on the ground
-            Velocity = new Vector3(0, IsOnFloor() ? 0 : Velocity.Y - Gravity * dt, 0);
-            MoveAndSlide();
-            return;
-        }
+        var senses = new NpcSenses(
+            GlobalPosition, GlobalTransform.Basis.X,
+            player.GlobalPosition, player.IsDead, player.IsMounted, player.Speed,
+            () => CanSee(player),
+            new Vector2(Velocity.X, Velocity.Z).Length(),
+            Weapon != null && Weapon.InMag == 0,
+            Weapon != null && Weapon.CanFire);
+        var intent = Brain.Think(senses, dt);
+        _label.Visible = intent.ShowLabel;
+        if (intent.Rest) { Rest(dt); return; }
 
-        bool hostile = IsHostileTo(player) && !player.IsDead;
-        bool canSee = hostile && dist < 90f && CanSee(player);
+        if (intent.Reload) Weapon?.StartReload();
+        if (intent.Fire) Shoot(player, intent.SpreadDegrees);
 
-        if (_state == State.Flee)
-        {
-            _fleeTimer -= dt;
-            if (_fleeTimer <= 0f || GlobalPosition.DistanceTo(_target) < 2f) { _state = Data.Patrol.Count > 1 ? State.Patrol : State.Idle; _wait = 2f; }
-        }
-        else if (hostile && Weapon == null)
-        {
-            if (dist < 25f) StartFlee(player.GlobalPosition);
-        }
-        else if (hostile && (canSee || dist < 12f || (_state is State.Chase or State.Attack && _lostTimer < 8f)))
-        {
-            if (canSee || dist < 12f) _lostTimer = 0f; else _lostTimer += dt;
-            float engage = Mathf.Min(Weapon!.Data.Range * 0.4f, 55f);
-            _state = canSee && dist < engage ? State.Attack : State.Chase;
-            _target = player.GlobalPosition;
-        }
-        else if (_state is State.Chase or State.Attack)
-        {
-            _state = Data.Patrol.Count > 1 ? State.Patrol : State.Idle;
-            _wait = 1f;
-        }
-
-        float wantSpeed = 0f;
-        float wantYaw = Rotation.Y;
-        switch (_state)
-        {
-            case State.Idle:
-                _wait -= dt;
-                if (_wait <= 0f && Data.WanderRadius > 0.5f)
-                {
-                    var rnd = new RandomNumberGenerator();
-                    var p = _home + new Vector3(rnd.RandfRange(-Data.WanderRadius, Data.WanderRadius), 0, rnd.RandfRange(-Data.WanderRadius, Data.WanderRadius));
-                    _target = p; _state = State.Wander;
-                }
-                else if (_wait <= 0f) _wait = 3f;
-                break;
-            case State.Wander:
-                if (Flat(_target - GlobalPosition).Length() < 1f) { _state = State.Idle; _wait = (float)GD.RandRange(2.0, 7.0); break; }
-                wantSpeed = WalkSpeed; wantYaw = YawTo(_target);
-                break;
-            case State.Patrol:
-            {
-                var p = _main.World.Ground(DataLoader.XZ(Data.Patrol[_patrolIndex]));
-                if (Flat(p - GlobalPosition).Length() < 1.2f)
-                {
-                    _wait -= dt;
-                    if (_wait <= 0f) { _patrolIndex = (_patrolIndex + 1) % Data.Patrol.Count; _wait = 1.5f; }
-                }
-                else { _target = p; wantSpeed = WalkSpeed; wantYaw = YawTo(p); }
-                break;
-            }
-            case State.Chase:
-                wantSpeed = RunSpeed; wantYaw = YawTo(_target);
-                break;
-            case State.Attack:
-                wantYaw = YawTo(player.GlobalPosition);
-                if (dist < 6f) { wantSpeed = -WalkSpeed; } // back off
-                Shoot(player, dist, dt);
-                break;
-            case State.Flee:
-                wantSpeed = RunSpeed; wantYaw = YawTo(_target);
-                break;
-        }
-
+        float wantYaw = intent.FaceTo is { } face ? YawTo(face) : Rotation.Y;
         Rotation = new Vector3(0, Mathf.LerpAngle(Rotation.Y, wantYaw, 1f - Mathf.Exp(-8f * dt)), 0);
         var forward = -GlobalTransform.Basis.Z;
         var v = Velocity;
-        v.X = Mathf.Lerp(v.X, forward.X * wantSpeed, 1f - Mathf.Exp(-10f * dt));
-        v.Z = Mathf.Lerp(v.Z, forward.Z * wantSpeed, 1f - Mathf.Exp(-10f * dt));
+        v.X = Mathf.Lerp(v.X, forward.X * intent.Speed, 1f - Mathf.Exp(-10f * dt));
+        v.Z = Mathf.Lerp(v.Z, forward.Z * intent.Speed, 1f - Mathf.Exp(-10f * dt));
         v.Y = IsOnFloor() ? -0.5f : v.Y - Gravity * dt;
         Velocity = v;
         MoveAndSlide();
 
-        if (Mathf.Abs(wantSpeed) > 0.5f && new Vector2(Velocity.X, Velocity.Z).Length() < 0.3f)
-        {
-            _stuck += dt;
-            if (_stuck > 1.2f)
-            {
-                _stuck = 0f;
-                // sidestep: pick a point off to one side and go there first
-                var side = GlobalTransform.Basis.X * (GD.Randf() > 0.5f ? 4f : -4f);
-                if (_state is State.Wander or State.Patrol) { _state = State.Idle; _wait = 1f; }
-                else _target = GlobalPosition + side;
-            }
-        }
-        else _stuck = 0f;
-
-        _model.SetAiming(_state == State.Attack);
+        _model.SetAiming(intent.State == NpcState.Attack);
         _model.Animate(new Vector2(Velocity.X, Velocity.Z).Length(), dt);
+    }
+
+    /// <summary>Dead or far from the player: no decisions, just the ground.</summary>
+    private void Rest(float dt)
+    {
+        Velocity = new Vector3(0, IsOnFloor() ? 0 : Velocity.Y - Gravity * dt, 0);
+        MoveAndSlide();
     }
 
     private bool CanSee(Player player)
@@ -329,30 +177,23 @@ public partial class Npc : CharacterBody3D, IInteractable, INpcView
         return GetWorld3D().DirectSpaceState.IntersectRay(q).Count == 0;
     }
 
-    private void Shoot(Player player, float dist, float dt)
+    /// <summary>One round the brain asked for: the raycast, the effects, the sound and the damage to whatever it hit.</summary>
+    private void Shoot(Player player, float spreadDegrees)
     {
         var w = Weapon!;
-        _reactTimer -= dt;
-        if (w.InMag == 0) { w.StartReload(); return; }
-        if (!w.CanFire || _reactTimer > 0f) return;
-        // soldiers are trained; outlaws and burghers are good shots at range, everyone misses more when the target runs
-        float baseSpread = Faction switch { Faction.British => 2.2f, Faction.Boer => 1.6f, _ => 2.6f };
-        float spread = baseSpread + dist * 0.03f + (player.Speed > 3f ? 2.5f : 0f) + (player.IsMounted ? 1.5f : 0f);
         var muzzle = _model.MuzzleWorld;
         var aimAt = player.GlobalPosition + new Vector3(0, player.IsMounted ? 1.5f : 1.1f, 0);
-        var shot = w.Fire(this, muzzle, aimAt - muzzle, spread, new Godot.Collections.Array<Rid> { GetRid() });
+        var shot = w.Fire(this, muzzle, aimAt - muzzle, spreadDegrees, new Godot.Collections.Array<Rid> { GetRid() });
         ShotEffects.Show(GetParent(), shot, muzzle);
         _main.Sfx.Gunshot(w.Data.Kind, GlobalPosition);
-        _wanted.OnGunfire(GlobalPosition, this);
         if (shot.Hit && shot.Collider is Player p) p.TakeDamage(Mathf.Max(8, w.Data.Damage / 3), this);
         else if (shot.Hit && shot.Collider is Npc other && other != this) other.TakeDamage(w.Data.Damage / 2, this);
-        _reactTimer = (float)GD.RandRange(0.4, 1.4);
     }
 
-    private static Vector3 Flat(Vector3 v) => new(v.X, 0, v.Z);
     private float YawTo(Vector3 target)
     {
-        var d = Flat(target - GlobalPosition);
+        var d = target - GlobalPosition;
+        d.Y = 0;
         return d.LengthSquared() < 0.001f ? Rotation.Y : Mathf.Atan2(-d.X, -d.Z);
     }
 }

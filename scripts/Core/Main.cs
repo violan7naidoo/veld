@@ -41,7 +41,7 @@ public partial class Main : Node3D
         Settings.Load();
         Data = DataLoader.LoadAll(new GodotDataFiles(), line => GD.Print(line), line => GD.PushError(line), MapOverride());
         Factions.Modern = Data.World.IsModern;
-        Sim = new Simulation(Data, new LiveWorld(this, Data), Notifier, new LiveDialogueView(this, Ui));
+        Sim = new Simulation(Data, new LiveWorld(this, Data), Notifier, new LiveDialogueView(this, Ui), new GodotRandom());
         SaveGame = new SaveGame(Sim, Notifier) { Main = this };
         Notifier.CoinsDropped += at => Sfx.Coins(at);
         GD.Print($"Veld data: {Data.Towns.Count} towns, {Data.Npcs.Count} npcs, {Data.Missions.Count} missions, {Data.Weapons.Count} weapons");
@@ -59,7 +59,7 @@ public partial class Main : Node3D
         DayNight.Weather = Weather;
 
         World = new WorldBuilder { Name = "World" };
-        World.Init(this, Sim.Purse, Sim.Reputation, Notifier, Sim.Missions, Sim.Dialogue, Sim.Wanted);
+        World.Init(this, Sim, Notifier);
         AddChild(World);
         World.Build(Data);
         DayNight.World = World;

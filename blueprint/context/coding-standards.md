@@ -22,7 +22,7 @@
 - `scripts/UI/` - HUD, minimap, world map, dialogue box, pause menu
 - `scripts/Audio/` - generated sounds
 - `data/maps/<map-id>/` - one folder per map; generated files next to hand-written ones
-- `sim/Veld.Sim/` - the simulation library: the `Simulation` and the sim clock, the data model and loader, money, factions, the ports, purse, standing, notifier, missions, dialogue, wanted system; no engine access
+- `sim/Veld.Sim/` - the simulation library: the `Simulation` and the sim clock, the data model and loader, money, factions, the ports (world, notifier, dialogue view, clock, dice), purse, standing, notifier, missions, dialogue, wanted system, and under `Characters/` the brain, senses and intent of every NPC; no engine access
 - `tests/Veld.Tests/` - unit tests over `sim/Veld.Sim/`; the test project references the library, never the game
 
 One system per file. A file is named after the type it holds.
@@ -53,7 +53,9 @@ One system per file. A file is named after the type it holds.
   hands each node what it needs through `Init` or `Configure` before the node
   enters the tree. **There is no static access to game state.** A new node
   declares its dependencies as `Init` parameters and receives one system each
-  (`Sim.Purse`, `Sim.Missions`), not the whole simulation; a new game-side
+  (`Sim.Purse`, `Sim.Missions`), not the whole simulation. The one exception
+  is a node that composes other nodes: `WorldBuilder` holds the `Simulation`
+  as the factory for the brains and systems it hands down. A new game-side
   service is created in `Main._Ready` and passed down. The old `Game` autoload
   was retired by build plan item 18.
 - Behaviour keyed on a string (`step.Type`, dialogue `action` and `condition`,
@@ -72,9 +74,13 @@ One system per file. A file is named after the type it holds.
   One `Simulation` owns the sim clock, purse, standing, missions, wanted and
   dialogue systems and builds them over the ports; `Main` creates it once and
   calls `Sim.Tick` from `_PhysicsProcess`, so the physics step is the fixed
-  tick and the simulation never reads an engine clock (item 19b). New
-  simulation code goes in the library and is driven from `Tick`; items 19c
-  and 19d move NPC decisions and player and world state inside it.
+  tick and the simulation never reads an engine clock (item 19b). Brains
+  decide, bodies act: an `NpcBrain` (item 19c) owns a character's hostility,
+  state machine, targets, shots and loot, and the `Npc` node feeds it
+  `NpcSenses` every physics frame and carries out its `NpcIntent` (steering,
+  raycasts, effects, animation). Dice roll through the `IRandom` port. New
+  simulation code goes in the library and is driven from `Tick`; item 19d
+  moves player and world state inside it.
 
 ## Content rules
 

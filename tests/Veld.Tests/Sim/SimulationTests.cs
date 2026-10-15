@@ -27,7 +27,7 @@ public class SimulationTests
         },
     };
 
-    private Simulation Sim() => new(Data(), _world, _notifier, _view);
+    private Simulation Sim() => new(Data(), _world, _notifier, _view, new FakeRandom());
 
     [Fact]
     public void Starts_from_the_map_data()

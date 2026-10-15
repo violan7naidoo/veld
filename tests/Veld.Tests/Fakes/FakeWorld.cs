@@ -11,12 +11,15 @@ public sealed class FakeWorld : IWorldQuery
     public bool IsModern { get; set; } = true;
     public FakePlayer? FakePlayerView { get; set; } = new();
     public List<FakeNpc> Characters { get; } = new();
+    /// <summary>Bodies driven by a brain; the world lists them alongside the plain fakes.</summary>
+    public List<INpcView> Bodies { get; } = new();
     public List<string> SpawnedIds { get; } = new();
 
     public IPlayerView? Player => FakePlayerView;
-    public IReadOnlyList<INpcView> Npcs => Characters;
-    public INpcView? FindNpc(string id) => Characters.FirstOrDefault(n => n.Id == id);
-    public IEnumerable<INpcView> Group(string group) => Characters.Where(n => n.Group == group);
+    private IEnumerable<INpcView> All => Characters.Cast<INpcView>().Concat(Bodies);
+    public IReadOnlyList<INpcView> Npcs => All.ToList();
+    public INpcView? FindNpc(string id) => All.FirstOrDefault(n => n.Id == id);
+    public IEnumerable<INpcView> Group(string group) => All.Where(n => n.Group == group);
 
     public void SpawnNpc(NpcData data)
     {

@@ -1,4 +1,4 @@
-using Veld.Characters;
+using Veld.Sim;
 using Xunit;
 
 namespace Veld.Tests.Characters;

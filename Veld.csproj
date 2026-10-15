@@ -11,5 +11,9 @@
   <ItemGroup>
     <!-- the Godot SDK globs every .cs under the project folder; the test project is its own assembly -->
     <Compile Remove="tests/**" />
+    <Compile Remove="sim/**" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="sim/Veld.Sim/Veld.Sim.csproj" />
   </ItemGroup>
 </Project>

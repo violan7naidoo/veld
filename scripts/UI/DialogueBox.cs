@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Godot;
-using Veld.Gameplay;
+using Veld.Sim.Dialogue;
 
 namespace Veld.UI;
 

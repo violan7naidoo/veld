@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using Veld.Core;
+using Veld.Sim;
 using Xunit;
 
 namespace Veld.Tests.Core;

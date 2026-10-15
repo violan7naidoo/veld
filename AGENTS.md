@@ -142,8 +142,12 @@ variant prints to the terminal; the plain one does not.
   `Vehicle.cs` or the player's enter and exit code.
 - Regenerate the map: `python tools/osm_to_map.py tools/source/montford_osm.json tools/source/montford_elevation.json data/maps/chatsworth-unit7`
 - Lint: none configured.
-- Test: `dotnet test tests/Veld.Tests` (xUnit, pure logic only; see the Testing
-  section of `blueprint/context/coding-standards.md`). Watch: `dotnet watch test --project tests/Veld.Tests`.
+- Test: `dotnet test tests/Veld.Tests` (xUnit over the `sim/Veld.Sim` library, pure logic only;
+  builds the library and the tests, never the Godot project; see the Testing section of
+  `blueprint/context/coding-standards.md`). Watch: `dotnet watch test --project tests/Veld.Tests`.
+- Sim fence: `grep -rnE "GD\.|FileAccess|ResourceLoader|\bOS\.|\bNode\b|Node3D|ProjectSettings|\bInput\b" sim/ --include=*.cs`
+  must print nothing. Run it after any change under `sim/`; the library may use the `GodotSharp`
+  math structs and nothing else from the engine.
 - Verify: not declared. Run `/ci` when you want one combined command and
   automatic GitHub checks; note the smoke test needs a Godot download on the
   runner.

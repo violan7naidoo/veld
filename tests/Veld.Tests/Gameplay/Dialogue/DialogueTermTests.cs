@@ -1,4 +1,4 @@
-using Veld.Gameplay.Dialogue;
+using Veld.Sim.Dialogue;
 using Xunit;
 
 namespace Veld.Tests.Gameplay.Dialogue;

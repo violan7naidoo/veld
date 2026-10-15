@@ -1,7 +1,9 @@
 using Godot;
 using Veld.Characters;
 using Veld.Core;
-using Veld.Gameplay;
+using Veld.Sim;
+using Veld.Sim.Dialogue;
+using Veld.Sim.Missions;
 using Veld.World;
 
 namespace Veld.UI;

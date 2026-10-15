@@ -13,6 +13,6 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
   </ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..\..\Veld.csproj" />
+    <ProjectReference Include="..\..\sim\Veld.Sim\Veld.Sim.csproj" />
   </ItemGroup>
 </Project>

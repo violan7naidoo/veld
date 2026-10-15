@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <LangVersion>latest</LangVersion>
+    <RootNamespace>Veld.Sim</RootNamespace>
+    <AssemblyName>Veld.Sim</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- for Vector2, Vector3, Color and Mathf only: managed code that runs without an engine.
+         Nothing in this library may touch a Node, GD, FileAccess, OS or ResourceLoader. -->
+    <PackageReference Include="GodotSharp" Version="4.7.2" />
+  </ItemGroup>
+</Project>

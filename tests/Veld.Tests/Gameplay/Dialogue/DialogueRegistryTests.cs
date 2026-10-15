@@ -1,5 +1,4 @@
-using System.Linq;
-using Veld.Gameplay.Dialogue;
+using Veld.Sim.Dialogue;
 using Xunit;
 
 namespace Veld.Tests.Gameplay.Dialogue;
@@ -45,8 +44,8 @@ public class DialogueRegistryTests
         var conditions = new[] { "mission_available", "mission_active", "mission_step", "mission_done", "wanted", "not_wanted", "money" };
         var actions = new[] { "start_mission", "talk_done", "give_money", "take_money", "clear_wanted", "give_ammo", "heal", "sleep", "end" };
 
-        Assert.Empty(conditions.Where(name => registry.FindCondition(name) == null));
-        Assert.Empty(actions.Where(name => registry.FindAction(name) == null));
+        Assert.DoesNotContain(conditions, name => registry.FindCondition(name) == null);
+        Assert.DoesNotContain(actions, name => registry.FindAction(name) == null);
         Assert.Null(registry.FindCondition("weather"));
         Assert.Null(registry.FindAction("dance"));
     }

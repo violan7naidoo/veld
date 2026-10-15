@@ -1,6 +1,5 @@
 using Godot;
-using Veld.Characters;
-using Veld.Gameplay;
+using Veld.Sim;
 using Veld.Tests.Fakes;
 using Xunit;
 

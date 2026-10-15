@@ -1,6 +1,7 @@
 using Godot;
 using Veld.Characters;
 using Veld.Core;
+using Veld.Sim;
 using Veld.World;
 
 namespace Veld.Gameplay;

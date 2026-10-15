@@ -1,7 +1,8 @@
 using System.Collections.Generic;
 using Godot;
 using Veld.Core;
-using Veld.Gameplay;
+using Veld.Sim;
+using Veld.Sim.Missions;
 using Veld.World;
 
 namespace Veld.UI;

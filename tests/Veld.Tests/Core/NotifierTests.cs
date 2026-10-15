@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using Godot;
-using Veld.Core;
+using Veld.Sim;
 using Xunit;
 
 namespace Veld.Tests.Core;

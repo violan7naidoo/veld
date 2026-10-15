@@ -15,14 +15,15 @@
 
 ## Project layout
 
-- `scripts/Core/` - entry point, data schema, input map, physics layers, smoke test
+- `scripts/Core/` - entry point and composition root, settings, save file, input map, physics layers, the live adapters over the sim ports, the smoke and stress harnesses
 - `scripts/World/` - terrain, roads, buildings, dressing, vegetation, sky, weather, map image, textures, prop helpers
-- `scripts/Characters/` - player, NPCs, horse, humanoid model, camera, factions
-- `scripts/Gameplay/` - weapons, vehicles, missions, dialogue, wanted system
+- `scripts/Characters/` - player, NPCs, horse, humanoid model, camera
+- `scripts/Gameplay/` - weapons, vehicles, interactables
 - `scripts/UI/` - HUD, minimap, world map, dialogue box, pause menu
 - `scripts/Audio/` - generated sounds
 - `data/maps/<map-id>/` - one folder per map; generated files next to hand-written ones
-- `tests/Veld.Tests/` - unit tests, once item 14 of the build plan lands
+- `sim/Veld.Sim/` - the simulation library: data model and loader, money, factions, the ports, purse, standing, notifier, missions, dialogue, wanted system; no engine access
+- `tests/Veld.Tests/` - unit tests over `sim/Veld.Sim/`; the test project references the library, never the game
 
 One system per file. A file is named after the type it holds.
 
@@ -55,11 +56,19 @@ One system per file. A file is named after the type it holds.
   autoload was retired by build plan item 18.
 - Behaviour keyed on a string (`step.Type`, dialogue `action` and `condition`,
   building `kind`) belongs in a registry of small classes looked up by name,
-  not in a growing `switch`. Items 16 and 17 introduce the registries; add new
-  kinds there once they exist.
-- Simulation logic (missions, dialogue rules, economy, NPC decisions) should
-  not depend on Godot node types. Where it does today, note it; item 19 moves
-  it into `Veld.Sim`.
+  not in a growing `switch`. `MissionStepRegistry` and `DialogueRegistry`
+  (items 16 and 17) are those registries; add new kinds there.
+- Simulation logic lives in `sim/Veld.Sim/`, a plain class library (item 19a):
+  the data model and loader, money, factions, the ports, purse, standing,
+  notifier, missions, dialogue and the wanted system, under `Veld.Sim`,
+  `Veld.Sim.Missions` and `Veld.Sim.Dialogue`. It references `GodotSharp`
+  only for `Vector2`, `Vector3`, `Color` and `Mathf`, which run without an
+  engine. It may not use `Node`, `GD`, `FileAccess`, `OS`, `ResourceLoader`,
+  `ProjectSettings` or `Input`; the Sim fence command in `AGENTS.md` must
+  print nothing. Engine access goes through a port (`IDataFiles`,
+  `IWorldQuery`, `IClock`...) with the live adapter in `scripts/Core/`. New
+  simulation code goes in the library; items 19b to 19d add the `Simulation`
+  object, the fixed tick, NPC decisions and player state.
 
 ## Content rules
 
@@ -70,9 +79,11 @@ real resident is depicted or implied. Missions are small-town stories.
 ## Testing
 
 The test runner is xUnit in `tests/Veld.Tests`, run with the `test` command in
-the Commands section of `AGENTS.md` (`dotnet test tests/Veld.Tests`). The game
-project excludes `tests/**` from its own compile and the folder carries a
-`.gdignore`, so the editor never sees the tests. The smoke run stays the
+the Commands section of `AGENTS.md` (`dotnet test tests/Veld.Tests`). The test
+project references `sim/Veld.Sim/Veld.Sim.csproj`, not the game, so a test run
+builds the library and the tests and never the Godot project. The game project
+excludes `tests/**` and `sim/**` from its own compile and both folders carry a
+`.gdignore`, so the editor never sees them. The smoke run stays the
 regression gate for everything that needs a scene:
 
     "...\Godot_v4.7.2-stable_mono_win64_console.exe" --path . -- --smoke
@@ -90,12 +101,16 @@ The test gate is on. Tests are required for logic-bearing steps:
 - **The gate:** a step that adds in-scope logic ships a passing test in the same
   diff. The test command must be green before the step is approved, before any
   checkpoint commit and before `/complete` merges.
-- Tests live in `tests/Veld.Tests/`, mirroring the `scripts/` folder, named
-  `<Type>Tests.cs`. Run them via the project's test command, not a hard-coded
+- Tests live in `tests/Veld.Tests/`, named `<Type>Tests.cs`, in a folder
+  named after the one that holds the type (`Sim/` for the library root;
+  `Core/`, `Gameplay/` and `Characters/` still hold the tests written before
+  the move). Run them via the project's test command, not a hard-coded
   tool name. An empty suite should fail, not pass.
 
-Stack binding: xUnit on .NET 8. Logic under test must not reference
-`Godot.*` types, which is the practical reason for the seams above.
+Stack binding: xUnit on .NET 8. Logic under test must not reach an engine API
+(`Node`, `GD`, `FileAccess`, `OS`, `Input`), which is the practical reason for
+the seams above; the `GodotSharp` math structs (`Vector3`, `Color`, `Mathf`)
+are plain managed code and are fine.
 
 ## Test design
 

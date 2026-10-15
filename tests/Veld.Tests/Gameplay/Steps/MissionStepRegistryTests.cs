@@ -1,6 +1,6 @@
 using Godot;
-using Veld.Core;
-using Veld.Gameplay.Steps;
+using Veld.Sim;
+using Veld.Sim.Missions;
 using Xunit;
 
 namespace Veld.Tests.Gameplay.Steps;

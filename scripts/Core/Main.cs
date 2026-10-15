@@ -1,7 +1,9 @@
 using Godot;
 using Veld.Audio;
 using Veld.Characters;
-using Veld.Gameplay;
+using Veld.Sim;
+using Veld.Sim.Dialogue;
+using Veld.Sim.Missions;
 using Veld.UI;
 using Veld.World;
 
@@ -43,7 +45,7 @@ public partial class Main : Node3D
         InputSetup.Configure();
 
         Settings.Load();
-        Data = DataLoader.LoadAll();
+        Data = DataLoader.LoadAll(new GodotDataFiles(), line => GD.Print(line), line => GD.PushError(line), MapOverride());
         Factions.Modern = Data.World.IsModern;
         Purse = new Purse(Data.World.StartMoney);
         var world = new LiveWorld(this, Data);
@@ -131,6 +133,14 @@ public partial class Main : Node3D
                 AddChild(stress);
                 break;
             }
+    }
+
+    /// <summary>`-- --map=<id>` plays another map folder without editing config.json.</summary>
+    private static string? MapOverride()
+    {
+        foreach (var a in OS.GetCmdlineUserArgs())
+            if (a.StartsWith("--map=")) return a.Substring(6);
+        return null;
     }
 
     /// <summary>Ticks the gameplay systems; stops with the tree, since this node is pausable.</summary>

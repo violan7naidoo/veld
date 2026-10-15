@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using Godot;
-using Veld.Characters;
-using Veld.Core;
+using Veld.Sim;
 
 namespace Veld.Tests.Fakes;
 

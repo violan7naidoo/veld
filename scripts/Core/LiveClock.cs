@@ -1,3 +1,5 @@
+using Veld.Sim;
+
 namespace Veld.Core;
 
 /// <summary>The scene's DayNight behind IClock, read through Main on every call.</summary>

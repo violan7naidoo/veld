@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using Godot;
 using Veld.Core;
-using Veld.Gameplay;
+using Veld.Sim;
 
 namespace Veld.World;
 

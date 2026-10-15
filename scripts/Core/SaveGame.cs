@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Text.Json;
 using Godot;
 using Veld.Gameplay;
+using Veld.Sim;
+using Veld.Sim.Missions;
 
 namespace Veld.Core;
 

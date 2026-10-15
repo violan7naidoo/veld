@@ -197,31 +197,31 @@ public partial class DevSmoke : Node
                 var giver = m.Data.Missions.Count > 0 ? w.FindNpc(m.Data.Missions[0].Giver) : null;
                 _talker = giver ?? w.Npcs.Find(n => !string.IsNullOrEmpty(n.Data.Dialogue) && !n.IsDead);
                 Check(_talker != null, "someone to talk to exists: " + (_talker?.Data.Name ?? "nobody"));
-                if (_talker != null) m.Dialogue.Start(_talker.Data.Dialogue, _talker);
+                if (_talker != null) m.Sim.Dialogue.Start(_talker.Data.Dialogue, _talker);
                 break;
             }
             case 358:
                 if (_talker != null)
                 {
-                    Check(m.Dialogue.IsActive && m.DialogueBox.IsOpen && m.Ui.InputLocked, "dialogue opened and input locked");
-                    m.Dialogue.Choose(0);
+                    Check(m.Sim.Dialogue.IsActive && m.DialogueBox.IsOpen && m.Ui.InputLocked, "dialogue opened and input locked");
+                    m.Sim.Dialogue.Choose(0);
                 }
                 break;
             case 364:
-                if (m.Dialogue.IsActive) m.Dialogue.End();
+                if (m.Sim.Dialogue.IsActive) m.Sim.Dialogue.End();
                 break;
             case 370:
-                Check(!m.Dialogue.IsActive && !m.Ui.InputLocked, "dialogue closed, input unlocked");
+                Check(!m.Sim.Dialogue.IsActive && !m.Ui.InputLocked, "dialogue closed, input unlocked");
                 if (m.Data.Missions.Count > 0)
                 {
                     _missionId = m.Data.Missions[0].Id;
-                    _money = m.Purse.Pence;
-                    Check(m.Missions.Start(_missionId), $"mission '{_missionId}' started");
+                    _money = m.Sim.Purse.Pence;
+                    Check(m.Sim.Missions.Start(_missionId), $"mission '{_missionId}' started");
                 }
                 else Check(true, "no missions on this map");
                 break;
             case 376:
-                if (_missionId != null) Check(m.Missions.MarkerPosition.HasValue, "HUD has an objective marker");
+                if (_missionId != null) Check(m.Sim.Missions.MarkerPosition.HasValue, "HUD has an objective marker");
                 if (w.PlayerCar != null) Check(w.PlayerCar.GlobalPosition.DistanceTo(_carMark) < 1.0f, $"parked car stayed put on the hill ({w.PlayerCar.GlobalPosition.DistanceTo(_carMark):0.00} m drift from ({_carMark.X:0.00}, {_carMark.Y:0.00}, {_carMark.Z:0.00}) to ({w.PlayerCar.GlobalPosition.X:0.00}, {w.PlayerCar.GlobalPosition.Y:0.00}, {w.PlayerCar.GlobalPosition.Z:0.00}), vel {w.PlayerCar.LinearVelocity.Length():0.00}, frozen {w.PlayerCar.Freeze})");
                 break;
             case 395:
@@ -234,17 +234,17 @@ public partial class DevSmoke : Node
                 if (_missionId != null)
                 {
                     var mission = m.Data.Mission(_missionId)!;
-                    Check(m.Missions.IsDone(_missionId), $"mission '{_missionId}' completed by walking its steps");
-                    Check(m.Purse.Pence == _money + mission.RewardPence, $"reward paid: {Money.Format(m.Purse.Pence - _money)}");
+                    Check(m.Sim.Missions.IsDone(_missionId), $"mission '{_missionId}' completed by walking its steps");
+                    Check(m.Sim.Purse.Pence == _money + mission.RewardPence, $"reward paid: {Money.Format(m.Sim.Purse.Pence - _money)}");
                 }
                 // the car was left far behind at the mission's first stop; H brings it round for R20
-                if (w.PlayerCar != null) { _money = m.Purse.Pence; Press("whistle"); }
+                if (w.PlayerCar != null) { _money = m.Sim.Purse.Pence; Press("whistle"); }
                 break;
             case 606:
                 if (w.PlayerCar != null)
                 {
                     Release("whistle");
-                    Check(w.PlayerCar.GlobalPosition.DistanceTo(p.GlobalPosition) < 12f && m.Purse.Pence == _money - 2000, $"H brings the car back for R20 ({w.PlayerCar.GlobalPosition.DistanceTo(p.GlobalPosition):0.0} m away, {Money.Format(_money - m.Purse.Pence)} charged)");
+                    Check(w.PlayerCar.GlobalPosition.DistanceTo(p.GlobalPosition) < 12f && m.Sim.Purse.Pence == _money - 2000, $"H brings the car back for R20 ({w.PlayerCar.GlobalPosition.DistanceTo(p.GlobalPosition):0.0} m away, {Money.Format(_money - m.Sim.Purse.Pence)} charged)");
                 }
                 break;
             case 610:
@@ -259,23 +259,23 @@ public partial class DevSmoke : Node
                 var police = w.Npcs.Find(n => n.Faction == Faction.British && !n.IsDead);
                 if (police != null)
                 {
-                    Check(m.Wanted.Level > 0, $"attacking the law raised wanted level to {m.Wanted.Level}");
+                    Check(m.Sim.Wanted.Level > 0, $"attacking the law raised wanted level to {m.Sim.Wanted.Level}");
                     Check(police.IsHostileTo(p), "they are now hostile");
-                    m.Wanted.ClearWanted();
+                    m.Sim.Wanted.ClearWanted();
                 }
                 break;
             }
             case 620:
                 m.SaveGame.Save();
                 Check(m.SaveGame.HasSave, "saved to " + ProjectSettings.GlobalizePath(SaveGame.Path));
-                _money = m.Purse.Pence;
+                _money = m.Sim.Purse.Pence;
                 _health = p.Health;
-                m.Purse.Add(100);
+                m.Sim.Purse.Add(100);
                 p.Health = 40;
                 break;
             case 626:
                 Check(m.SaveGame.Load(), "loaded save");
-                Check(m.Purse.Pence == _money && p.Health == _health, $"save restored money and health ({p.Health})");
+                Check(m.Sim.Purse.Pence == _money && p.Health == _health, $"save restored money and health ({p.Health})");
                 break;
             case 632:
                 m.PauseMenu.Toggle();
@@ -307,7 +307,7 @@ public partial class DevSmoke : Node
                     if (home != null) Check(MapImage.LocationName(m.Data, home.Centre).StartsWith(home.Building.Address), "HUD names the house you stand in: " + MapImage.LocationName(m.Data, home.Centre));
                     Check(AddressIndex.Find("9999999 nowhere") == null, "address search rejects an unknown address");
                 }
-                m.DayNight.Hour = 17.55f;
+                m.Sim.Clock.Hour = 17.55f;
                 var spawn = DataLoader.XZ(m.Data.World.PlayerSpawn);
                 p.Dismount();
                 p.GlobalPosition = w.Ground(spawn) + Vector3.Up;
@@ -315,9 +315,9 @@ public partial class DevSmoke : Node
                 break;
             }
             case 700:
-                Check(!m.DayNight.IsNight && m.DayNight.Hour > 17f, $"clock advanced to {m.DayNight.TimeText}");
+                Check(m.Sim.Clock.Hour >= 17.57f && !m.Sim.Clock.IsNight, $"clock ran to {m.Sim.Clock.TimeText} in 48 physics frames");
                 Shot("4-sunset");
-                m.DayNight.Hour = 21.5f;
+                m.Sim.Clock.Hour = 21.5f;
                 m.Weather.Force(Veld.World.Weather.State.Storm);
                 break;
             case 740:
@@ -332,9 +332,9 @@ public partial class DevSmoke : Node
         }
 
         // walk the active mission's steps: teleport to goto targets, defeat kill groups, report talks
-        if (_missionId != null && _frame >= 380 && _frame < 600 && _frame % 20 == 0 && m.Missions.Active != null)
+        if (_missionId != null && _frame >= 380 && _frame < 600 && _frame % 20 == 0 && m.Sim.Missions.Active != null)
         {
-            var step = m.Missions.CurrentStep;
+            var step = m.Sim.Missions.CurrentStep;
             if (step == null) return;
             switch (step.Type)
             {
@@ -350,7 +350,7 @@ public partial class DevSmoke : Node
                     break;
                 case "talk":
                 case "return":
-                    m.Missions.OnTalked(string.IsNullOrEmpty(step.Target) ? m.Missions.Active.Giver : step.Target);
+                    m.Sim.Missions.OnTalked(string.IsNullOrEmpty(step.Target) ? m.Sim.Missions.Active.Giver : step.Target);
                     break;
             }
         }

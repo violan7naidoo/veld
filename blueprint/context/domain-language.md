@@ -8,7 +8,19 @@
 > pointer in `AGENTS.md`. Keep it free of implementation detail: it is a
 > glossary, not a spec, and `/overview` never writes to it.
 
-_No terms recorded yet. Add the first one the moment a term is resolved._
+## Simulation
+
+**Simulation**:
+The engine-free model of the game: the purse, standing, sim clock, missions, wanted state and dialogue, owned by one object in the `Veld.Sim` library and advanced by a tick. Godot nodes render it and forward input to it.
+_Avoid_: game state, the model, the services
+
+**Tick**:
+One advance of the simulation by a fixed slice of time, driven once per physics frame. The simulation never reads wall-clock time.
+_Avoid_: update, frame, step (a mission step is something else)
+
+**Sim clock**:
+Game time as hour of day and day number. A game day lasts the map's `dayLengthSeconds` of ticks; the sky, lamps and the HUD clock render it, and sleeping advances it.
+_Avoid_: day-night (that is the renderer), world time, time of day
 
 ## Rules
 

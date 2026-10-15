@@ -88,7 +88,7 @@ public partial class PauseMenu : Control
         var timeRow = new HBoxContainer();
         timeRow.AddChild(new Label { Text = "Time of day" });
         var time = new HSlider { MinValue = 0, MaxValue = 24, Step = 0.25, SizeFlagsHorizontal = SizeFlags.ExpandFill };
-        time.ValueChanged += x => _main.DayNight.Hour = (float)x;
+        time.ValueChanged += x => _main.Sim.Clock.Hour = (float)x;
         timeRow.AddChild(time);
         v.AddChild(timeRow);
         v.AddChild(new HSeparator());
@@ -113,7 +113,7 @@ public partial class PauseMenu : Control
         _status.AddThemeColorOverride("font_color", new Color(0.8f, 0.75f, 0.65f));
         v.AddChild(_status);
 
-        VisibilityChanged += () => { if (Visible) time.SetValueNoSignal(_main.DayNight.Hour); };
+        VisibilityChanged += () => { if (Visible) time.SetValueNoSignal(_main.Sim.Clock.Hour); };
     }
 
     private static Button Btn(string text, System.Action onPressed)

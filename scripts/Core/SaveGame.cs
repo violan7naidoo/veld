@@ -2,15 +2,14 @@ using System;
 using System.Collections.Generic;
 using System.Text.Json;
 using Godot;
-using Veld.Gameplay;
 using Veld.Sim;
-using Veld.Sim.Missions;
 
 namespace Veld.Core;
 
 /// <summary>
 /// The save file at user://save.json: what the player owns, where they are and what they have done.
-/// The player, clock and world come from Main; Save and Load do nothing until it is bound.
+/// The player and the world come from Main; money, standing, time, missions and wanted come from the
+/// simulation. Save and Load do nothing until Main is bound.
 /// </summary>
 public sealed class SaveGame
 {
@@ -34,18 +33,12 @@ public sealed class SaveGame
         public Dictionary<string, int> Ammo { get; set; } = new();
     }
 
-    private readonly Purse _purse;
-    private readonly Reputation _reputation;
-    private readonly MissionManager _missions;
-    private readonly WantedSystem _wanted;
+    private readonly Simulation _sim;
     private readonly INotifier _notifier;
 
-    public SaveGame(Purse purse, Reputation reputation, MissionManager missions, WantedSystem wanted, INotifier notifier)
+    public SaveGame(Simulation sim, INotifier notifier)
     {
-        _purse = purse;
-        _reputation = reputation;
-        _missions = missions;
-        _wanted = wanted;
+        _sim = sim;
         _notifier = notifier;
     }
 
@@ -55,20 +48,20 @@ public sealed class SaveGame
 
     public void Save()
     {
-        if (Main == null || Main.Player == null || Main.DayNight == null) return;
+        if (Main == null || Main.Player == null) return;
         var player = Main.Player;
         var s = new SaveFile
         {
-            Pence = _purse.Pence,
-            Reputation = _reputation.Value,
+            Pence = _sim.Purse.Pence,
+            Reputation = _sim.Reputation.Value,
             PlayerPosition = new[] { player.GlobalPosition.X, player.GlobalPosition.Y, player.GlobalPosition.Z },
-            Hour = Main.DayNight.Hour,
-            Day = Main.DayNight.Day,
+            Hour = _sim.Clock.Hour,
+            Day = _sim.Clock.Day,
             DeadNpcs = new List<string>(Main.World.DeadNpcs),
-            CompletedMissions = new List<string>(_missions.Completed),
-            ActiveMission = _missions.Active?.Id,
-            ActiveStep = _missions.StepIndex,
-            WantedLevel = _wanted.Level,
+            CompletedMissions = new List<string>(_sim.Missions.Completed),
+            ActiveMission = _sim.Missions.Active?.Id,
+            ActiveStep = _sim.Missions.StepIndex,
+            WantedLevel = _sim.Wanted.Level,
             Health = player.Health,
             Weapon = player.CurrentWeaponId,
             Ammo = player.AmmoSnapshot(),
@@ -80,21 +73,21 @@ public sealed class SaveGame
 
     public bool Load()
     {
-        if (!HasSave || Main == null || Main.Player == null || Main.DayNight == null || Main.World == null) return false;
+        if (!HasSave || Main == null || Main.Player == null || Main.World == null) return false;
         using var f = FileAccess.Open(Path, FileAccess.ModeFlags.Read);
         var s = JsonSerializer.Deserialize<SaveFile>(f.GetAsText(), DataLoader.Json);
         if (s == null) return false;
 
         var player = Main.Player;
-        _purse.Restore(s.Pence);
-        _reputation.Restore(s.Reputation);
+        _sim.Purse.Restore(s.Pence);
+        _sim.Reputation.Restore(s.Reputation);
         Main.World.DeadNpcs.Clear();
         foreach (var id in s.DeadNpcs) Main.World.DeadNpcs.Add(id);
         Main.World.ApplyDeadNpcs();
-        Main.DayNight.Hour = s.Hour;
-        Main.DayNight.Day = s.Day;
-        _wanted.SetLevel(s.WantedLevel);
-        _missions.Restore(s.CompletedMissions, s.ActiveMission, s.ActiveStep);
+        _sim.Clock.Hour = s.Hour;
+        _sim.Clock.Day = s.Day;
+        _sim.Wanted.SetLevel(s.WantedLevel);
+        _sim.Missions.Restore(s.CompletedMissions, s.ActiveMission, s.ActiveStep);
         player.Dismount();
         player.ExitVehicle();
         player.GlobalPosition = new Vector3(s.PlayerPosition[0], s.PlayerPosition[1] + 0.5f, s.PlayerPosition[2]);

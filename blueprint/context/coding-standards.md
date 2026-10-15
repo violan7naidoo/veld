@@ -22,7 +22,7 @@
 - `scripts/UI/` - HUD, minimap, world map, dialogue box, pause menu
 - `scripts/Audio/` - generated sounds
 - `data/maps/<map-id>/` - one folder per map; generated files next to hand-written ones
-- `sim/Veld.Sim/` - the simulation library: data model and loader, money, factions, the ports, purse, standing, notifier, missions, dialogue, wanted system; no engine access
+- `sim/Veld.Sim/` - the simulation library: the `Simulation` and the sim clock, the data model and loader, money, factions, the ports, purse, standing, notifier, missions, dialogue, wanted system; no engine access
 - `tests/Veld.Tests/` - unit tests over `sim/Veld.Sim/`; the test project references the library, never the game
 
 One system per file. A file is named after the type it holds.
@@ -48,12 +48,14 @@ One system per file. A file is named after the type it holds.
 
 ## Dependencies and seams (where we are going)
 
-- `Main` is the composition root: it loads the data, creates the services and
-  the gameplay systems, and hands each node what it needs through `Init` or
-  `Configure` before the node enters the tree. **There is no static access to
-  game state.** A new node declares its dependencies as `Init` parameters; a
-  new service is created in `Main._Ready` and passed down. The old `Game`
-  autoload was retired by build plan item 18.
+- `Main` is the composition root: it loads the data, creates the `Simulation`
+  and the game-side services (notifier, settings, UI state, save file), and
+  hands each node what it needs through `Init` or `Configure` before the node
+  enters the tree. **There is no static access to game state.** A new node
+  declares its dependencies as `Init` parameters and receives one system each
+  (`Sim.Purse`, `Sim.Missions`), not the whole simulation; a new game-side
+  service is created in `Main._Ready` and passed down. The old `Game` autoload
+  was retired by build plan item 18.
 - Behaviour keyed on a string (`step.Type`, dialogue `action` and `condition`,
   building `kind`) belongs in a registry of small classes looked up by name,
   not in a growing `switch`. `MissionStepRegistry` and `DialogueRegistry`
@@ -66,9 +68,13 @@ One system per file. A file is named after the type it holds.
   engine. It may not use `Node`, `GD`, `FileAccess`, `OS`, `ResourceLoader`,
   `ProjectSettings` or `Input`; the Sim fence command in `AGENTS.md` must
   print nothing. Engine access goes through a port (`IDataFiles`,
-  `IWorldQuery`, `IClock`...) with the live adapter in `scripts/Core/`. New
-  simulation code goes in the library; items 19b to 19d add the `Simulation`
-  object, the fixed tick, NPC decisions and player state.
+  `IWorldQuery`, `IDialogueView`...) with the live adapter in `scripts/Core/`.
+  One `Simulation` owns the sim clock, purse, standing, missions, wanted and
+  dialogue systems and builds them over the ports; `Main` creates it once and
+  calls `Sim.Tick` from `_PhysicsProcess`, so the physics step is the fixed
+  tick and the simulation never reads an engine clock (item 19b). New
+  simulation code goes in the library and is driven from `Tick`; items 19c
+  and 19d move NPC decisions and player and world state inside it.
 
 ## Content rules
 

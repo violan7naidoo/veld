@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using Godot;
-using Veld.Core;
 using Veld.Sim;
 
 namespace Veld.World;
@@ -8,22 +7,13 @@ namespace Veld.World;
 public enum Quality { Low, Medium, High }
 
 /// <summary>
-/// Sky, sun, moon, clouds, fog and post-processing, driven by a 24-hour clock. Also keeps the list of
+/// Sky, sun, moon, clouds, fog and post-processing, rendering the sim clock. Also keeps the list of
 /// lamps and lit windows that come on at night. Graphics quality presets live in ApplyQuality.
 /// </summary>
-public partial class DayNight : Node3D, IClock
+public partial class DayNight : Node3D
 {
-    public float Hour { get; set; } = 7.5f;
-    public int Day { get; set; } = 1;
-
-    /// <summary>Move the clock forward, rolling past midnight into the next day.</summary>
-    public void Advance(float hours)
-    {
-        Hour += hours;
-        while (Hour >= 24f) { Hour -= 24f; Day++; }
-    }
-    public float DayLengthSeconds { get; set; } = 720f;
-    public bool Paused { get; set; }
+    /// <summary>The game time this node draws; owned by the simulation.</summary>
+    public SimClock Clock { get; private set; } = null!;
     public Quality Quality { get; private set; } = Quality.High;
     /// <summary>0 in full daylight, 1 at night.</summary>
     public float NightFactor { get; private set; }
@@ -62,15 +52,11 @@ public partial class DayNight : Node3D, IClock
         mat.EmissionEnergyMultiplier = 0f;
     }
 
-    public void Configure(float startHour, float dayLength, Quality quality)
+    public void Configure(SimClock clock, Quality quality)
     {
-        Hour = startHour;
-        DayLengthSeconds = dayLength;
+        Clock = clock;
         Quality = quality;
     }
-
-    public string TimeText => $"{(int)Hour:00}:{(int)((Hour % 1f) * 60f):00}";
-    public bool IsNight => Hour < 5.5f || Hour > 19.5f;
 
     public override void _Ready()
     {
@@ -188,20 +174,12 @@ public partial class DayNight : Node3D, IClock
         _clouds.Visible = true;
     }
 
-    public override void _Process(double delta)
-    {
-        if (!Paused && !GetTree().Paused)
-        {
-            Hour += (float)delta * 24f / DayLengthSeconds;
-            if (Hour >= 24f) { Hour -= 24f; Day++; }
-        }
-        Apply();
-    }
+    public override void _Process(double delta) => Apply();
 
     private void Apply()
     {
         // sun travels east to west; elevation peaks at 13:00 (southern hemisphere: the sun sits to the north)
-        float t = (Hour - 6f) / 12f; // 0 at sunrise 06:00, 1 at sunset 18:00
+        float t = (Clock.Hour - 6f) / 12f; // 0 at sunrise 06:00, 1 at sunset 18:00
         float elevation = Mathf.Sin(Mathf.Clamp(t, -0.25f, 1.25f) * Mathf.Pi) * 72f;
         float azimuth = Mathf.Lerp(-95f, 95f, Mathf.Clamp(t, -0.25f, 1.25f));
         _sun.RotationDegrees = new Vector3(-elevation, azimuth, 0);

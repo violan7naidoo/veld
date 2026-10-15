@@ -92,7 +92,7 @@ public partial class Weather : Node3D
     {
         if (GetTree().Paused) return;
         float dt = (float)delta;
-        float gameHours = dt * 24f / _dayNight.DayLengthSeconds;
+        float gameHours = dt * 24f / _dayNight.Clock.DayLengthSeconds;
 
         // pick the next weather every few game hours
         _hoursUntilChange -= gameHours;

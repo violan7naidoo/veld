@@ -2,17 +2,15 @@ using Godot;
 using Veld.Audio;
 using Veld.Characters;
 using Veld.Sim;
-using Veld.Sim.Dialogue;
-using Veld.Sim.Missions;
 using Veld.UI;
 using Veld.World;
 
 namespace Veld.Core;
 
 /// <summary>
-/// Root of the main scene and the composition root. Loads the data and settings, creates the purse,
-/// standing, notifier, UI state and save file, composes the mission, wanted and dialogue systems over
-/// live adapters, then builds the world from data, spawns the player, the horse and the NPCs, and
+/// Root of the main scene and the composition root. Loads the data and settings, creates the notifier,
+/// UI state and save file, composes the simulation over live adapters and ticks it once per physics
+/// frame, then builds the world from data, spawns the player, the horse and the NPCs, and
 /// creates the UI, handing each node what it needs. Open scenes/Main.tscn in the editor to see it;
 /// everything underneath is created at runtime from the JSON in res://data.
 /// </summary>
@@ -20,14 +18,10 @@ public partial class Main : Node3D
 {
     public GameData Data { get; private set; } = new();
     public Settings Settings { get; } = new();
-    public Purse Purse { get; private set; } = null!;
-    public Reputation Reputation { get; } = new();
+    public Simulation Sim { get; private set; } = null!;
     public Notifier Notifier { get; } = new(line => GD.Print(line));
     public UiState Ui { get; } = new();
     public SaveGame SaveGame { get; private set; } = null!;
-    public MissionManager Missions { get; private set; } = null!;
-    public DialogueSystem Dialogue { get; private set; } = null!;
-    public WantedSystem Wanted { get; private set; } = null!;
 
     public WorldBuilder World { get; private set; } = null!;
     public DayNight DayNight { get; private set; } = null!;
@@ -47,12 +41,8 @@ public partial class Main : Node3D
         Settings.Load();
         Data = DataLoader.LoadAll(new GodotDataFiles(), line => GD.Print(line), line => GD.PushError(line), MapOverride());
         Factions.Modern = Data.World.IsModern;
-        Purse = new Purse(Data.World.StartMoney);
-        var world = new LiveWorld(this, Data);
-        Missions = new MissionManager(Data, world, Purse, Notifier);
-        Wanted = new WantedSystem(world, Notifier);
-        Dialogue = new DialogueSystem(Data, Missions, Wanted, world, Purse, Notifier, new LiveClock(this), new LiveDialogueView(this, Ui));
-        SaveGame = new SaveGame(Purse, Reputation, Missions, Wanted, Notifier) { Main = this };
+        Sim = new Simulation(Data, new LiveWorld(this, Data), Notifier, new LiveDialogueView(this, Ui));
+        SaveGame = new SaveGame(Sim, Notifier) { Main = this };
         Notifier.CoinsDropped += at => Sfx.Coins(at);
         GD.Print($"Veld data: {Data.Towns.Count} towns, {Data.Npcs.Count} npcs, {Data.Missions.Count} missions, {Data.Weapons.Count} weapons");
 
@@ -61,7 +51,7 @@ public partial class Main : Node3D
         AddChild(Sfx);
 
         DayNight = new DayNight { Name = "DayNight" };
-        DayNight.Configure(Data.World.StartHour, Data.World.DayLengthSeconds, Settings.GraphicsQuality);
+        DayNight.Configure(Sim.Clock, Settings.GraphicsQuality);
         AddChild(DayNight);
         Weather = new Weather { Name = "Weather" };
         Weather.Configure(Data.World.Biome, Data.World.Seed, DayNight, Sfx);
@@ -69,7 +59,7 @@ public partial class Main : Node3D
         DayNight.Weather = Weather;
 
         World = new WorldBuilder { Name = "World" };
-        World.Init(this, Purse, Reputation, Notifier, Missions, Dialogue, Wanted);
+        World.Init(this, Sim.Purse, Sim.Reputation, Notifier, Sim.Missions, Sim.Dialogue, Sim.Wanted);
         AddChild(World);
         World.Build(Data);
         DayNight.World = World;
@@ -81,7 +71,7 @@ public partial class Main : Node3D
 
         Player = GD.Load<PackedScene>("res://scenes/Player.tscn").Instantiate<Player>();
         Player.Name = "Player";
-        Player.Init(this, Data, Purse, Notifier, Ui, Wanted);
+        Player.Init(this, Data, Sim.Purse, Notifier, Ui, Sim.Wanted);
         var spawn = DataLoader.XZ(Data.World.PlayerSpawn);
         Player.Position = new Vector3(spawn.X, World.Terrain.GetHeight(spawn.X, spawn.Y) + 1.0f, spawn.Y);
         Player.Rotation = new Vector3(0, Mathf.DegToRad(Data.World.PlayerSpawnFacing), 0);
@@ -99,16 +89,16 @@ public partial class Main : Node3D
         var ui = new CanvasLayer { Name = "UI", ProcessMode = ProcessModeEnum.Always };
         AddChild(ui);
         Hud = new Hud { Name = "Hud" };
-        Hud.Init(this, Data, Purse, Notifier, Ui, Missions, Wanted);
+        Hud.Init(this, Data, Sim.Purse, Notifier, Ui, Sim.Missions, Sim.Wanted);
         ui.AddChild(Hud);
         DialogueBox = new DialogueBox { Name = "DialogueBox" };
-        DialogueBox.Init(Dialogue);
+        DialogueBox.Init(Sim.Dialogue);
         ui.AddChild(DialogueBox);
         WorldMap = new WorldMap { Name = "WorldMap" };
-        WorldMap.Init(this, Data, Notifier, Ui, Missions, Wanted, Dialogue);
+        WorldMap.Init(this, Data, Notifier, Ui, Sim.Missions, Sim.Wanted, Sim.Dialogue);
         ui.AddChild(WorldMap);
         PauseMenu = new PauseMenu { Name = "PauseMenu" };
-        PauseMenu.Init(this, Data, Settings, SaveGame, Ui, Dialogue);
+        PauseMenu.Init(this, Data, Settings, SaveGame, Ui, Sim.Dialogue);
         ui.AddChild(PauseMenu);
         var uiInput = new UiInput { Name = "UiInput" };
         uiInput.Init(this);
@@ -143,11 +133,11 @@ public partial class Main : Node3D
         return null;
     }
 
-    /// <summary>Ticks the gameplay systems; stops with the tree, since this node is pausable.</summary>
+    /// <summary>The fixed tick: the physics step is the simulation's time slice. Stops with the tree, since this node is pausable.</summary>
+    public override void _PhysicsProcess(double delta) => Sim.Tick((float)delta);
+
     public override void _Process(double delta)
     {
-        Missions.Update((float)delta);
-        Wanted.Update((float)delta);
         // grass bends away from the player and the horse
         var grass = World.Vegetation?.GrassMaterial;
         if (grass != null)
@@ -174,8 +164,8 @@ public partial class Main : Node3D
         }
         else if (@event.IsActionPressed("map_time_skip") && !Ui.InputLocked)
         {
-            DayNight.Hour = (DayNight.Hour + 2f) % 24f;
-            Notifier.Notify($"Time passes. It is now {DayNight.TimeText}.");
+            Sim.Clock.Advance(2f);
+            Notifier.Notify($"Time passes. It is now {Sim.Clock.TimeText}.");
         }
         else if (@event.IsActionPressed("screenshot"))
         {

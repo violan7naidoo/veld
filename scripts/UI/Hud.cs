@@ -220,8 +220,8 @@ public partial class Hud : Control
             _ammo.Text = w == null ? "" : w.Reloading ? "reloading…" : $"{w.InMag} / {w.Reserve}";
         }
         _money.Text = Money.Format(_purse.Pence);
-        var dn = _main.DayNight;
-        _clock.Text = $"Day {dn.Day}, {dn.TimeText}  —  " + (_data.World.IsModern ? "today" : "April 1901") + "  ·  " + _main.Weather.Describe();
+        var clock = _main.Sim.Clock;
+        _clock.Text = $"Day {clock.Day}, {clock.TimeText}  —  " + (_data.World.IsModern ? "today" : "April 1901") + "  ·  " + _main.Weather.Describe();
         _wanted.Text = _wantedSystem.Label;
         _objective.Text = _missions.ObjectiveText;
         _crosshair.Visible = player.Aiming;

@@ -23,6 +23,9 @@ public partial class DevCarStress : Node
     private readonly List<Vehicle> _cars = new();
     private Sample _first = new(), _second = new();
     private string _preEnter = "";
+    private Main _main = null!;
+
+    public void Init(Main main) => _main = main;
 
     private sealed class Sample
     {
@@ -37,7 +40,7 @@ public partial class DevCarStress : Node
         AddChild(new DevInputShield { Name = "InputShield" });
         foreach (var a in OS.GetCmdlineUserArgs())
             if (a.StartsWith("--carstress=") && int.TryParse(a.Substring(12), out var n)) _count = n;
-        var w = Game.Instance.World!;
+        var w = _main.World;
         if (w.PlayerCar != null) _cars.Add(w.PlayerCar);
         foreach (var v in w.Vehicles) if (v != w.PlayerCar && _cars.Count < _count) _cars.Add(v);
         GD.Print($"CARSTRESS: {_cars.Count} cars, {FramesPerPhase} frames per phase");
@@ -45,10 +48,8 @@ public partial class DevCarStress : Node
 
     public override void _PhysicsProcess(double delta)
     {
-        var g = Game.Instance;
-        var p = g.Player;
-        var w = g.World;
-        if (p == null || w == null) return;
+        var p = _main.Player;
+        var w = _main.World;
         if (_frame < 120) { _frame++; return; } // let the world settle and every parked car freeze
         if (_index >= _cars.Count) { Finish(); return; }
 

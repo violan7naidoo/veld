@@ -1,24 +1,28 @@
 using System.Collections.Generic;
-using System.Linq;
 using Godot;
 
 namespace Veld.Core;
 
 /// <summary>
-/// The running scene behind IWorldQuery. Reads through Game on every call because the autoload
-/// wakes before Main binds the world and the player; until then it answers with nothing.
+/// The running scene behind IWorldQuery, read through Main on every call so the systems can be
+/// composed before the world and the player exist; nothing asks until they do.
 /// </summary>
 public sealed class LiveWorld : IWorldQuery
 {
-    private readonly Game _game;
+    private readonly Main _main;
+    private readonly GameData _data;
 
-    public LiveWorld(Game game) => _game = game;
+    public LiveWorld(Main main, GameData data)
+    {
+        _main = main;
+        _data = data;
+    }
 
-    public bool IsModern => _game.Data.World.IsModern;
-    public IPlayerView? Player => _game.Player;
-    public IReadOnlyList<INpcView> Npcs => _game.World?.Npcs ?? (IReadOnlyList<INpcView>)System.Array.Empty<INpcView>();
-    public INpcView? FindNpc(string id) => _game.World?.FindNpc(id);
-    public IEnumerable<INpcView> Group(string group) => _game.World?.Group(group) ?? Enumerable.Empty<INpcView>();
-    public void SpawnNpc(NpcData data) => _game.World?.SpawnNpc(data);
-    public Vector3 Ground(Vector2 xz) => _game.World?.Ground(xz) ?? new Vector3(xz.X, 0f, xz.Y);
+    public bool IsModern => _data.World.IsModern;
+    public IPlayerView? Player => _main.Player;
+    public IReadOnlyList<INpcView> Npcs => _main.World.Npcs;
+    public INpcView? FindNpc(string id) => _main.World.FindNpc(id);
+    public IEnumerable<INpcView> Group(string group) => _main.World.Group(group);
+    public void SpawnNpc(NpcData data) => _main.World.SpawnNpc(data);
+    public Vector3 Ground(Vector2 xz) => _main.World.Ground(xz);
 }

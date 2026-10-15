@@ -47,10 +47,12 @@ One system per file. A file is named after the type it holds.
 
 ## Dependencies and seams (where we are going)
 
-- `Game.Instance` is a service locator reached from 111 call sites today. **Do
-  not add new call sites.** New code receives what it needs through its
-  constructor or an `Init` method. Existing call sites are removed by build
-  plan items 15 and 18.
+- `Main` is the composition root: it loads the data, creates the services and
+  the gameplay systems, and hands each node what it needs through `Init` or
+  `Configure` before the node enters the tree. **There is no static access to
+  game state.** A new node declares its dependencies as `Init` parameters; a
+  new service is created in `Main._Ready` and passed down. The old `Game`
+  autoload was retired by build plan item 18.
 - Behaviour keyed on a string (`step.Type`, dialogue `action` and `condition`,
   building `kind`) belongs in a registry of small classes looked up by name,
   not in a growing `switch`. Items 16 and 17 introduce the registries; add new

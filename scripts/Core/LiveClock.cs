@@ -1,13 +1,13 @@
 namespace Veld.Core;
 
-/// <summary>The scene's DayNight behind IClock, read through Game on every call; zero and no-op until the scene is bound.</summary>
+/// <summary>The scene's DayNight behind IClock, read through Main on every call.</summary>
 public sealed class LiveClock : IClock
 {
-    private readonly Game _game;
+    private readonly Main _main;
 
-    public LiveClock(Game game) => _game = game;
+    public LiveClock(Main main) => _main = main;
 
-    public float Hour => _game.DayNight?.Hour ?? 0f;
-    public int Day => _game.DayNight?.Day ?? 0;
-    public void Advance(float hours) => _game.DayNight?.Advance(hours);
+    public float Hour => _main.DayNight.Hour;
+    public int Day => _main.DayNight.Day;
+    public void Advance(float hours) => _main.DayNight.Advance(hours);
 }

@@ -16,10 +16,6 @@ run/main_scene="res://scenes/Main.tscn"
 config/features=PackedStringArray("4.7", "C#", "Forward Plus")
 config/icon="res://icon.svg"
 
-[autoload]
-
-Game="*res://scripts/Core/Game.cs"
-
 [display]
 
 window/size/viewport_width=1600

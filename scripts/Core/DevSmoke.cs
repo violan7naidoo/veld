@@ -24,6 +24,9 @@ public partial class DevSmoke : Node
     private float _yawMark;
     private Vector3 _carMark;
     private Npc? _talker;
+    private Main _main = null!;
+
+    public void Init(Main main) => _main = main;
 
     public override void _Ready()
     {
@@ -33,13 +36,13 @@ public partial class DevSmoke : Node
         foreach (var a in args)
         {
             if (a.StartsWith("--shot=")) _shot = a.Substring(7);
-            if (a.StartsWith("--quality=") && int.TryParse(a.Substring(10), out var q) && Game.Instance.DayNight != null)
+            if (a.StartsWith("--quality=") && int.TryParse(a.Substring(10), out var q))
             {
-                Game.Instance.GraphicsQuality = (Veld.World.Quality)Mathf.Clamp(q, 0, 2);
-                Game.Instance.DayNight.ApplyQuality(Game.Instance.GraphicsQuality);
+                _main.Settings.GraphicsQuality = (Veld.World.Quality)Mathf.Clamp(q, 0, 2);
+                _main.DayNight.ApplyQuality(_main.Settings.GraphicsQuality);
             }
         }
-        GD.Print($"SMOKE: started on map '{Game.Instance.Data.MapId}'" + (_shot != null ? ", screenshots to " + _shot : ""));
+        GD.Print($"SMOKE: started on map '{_main.Data.MapId}'" + (_shot != null ? ", screenshots to " + _shot : ""));
     }
 
     private void Check(bool ok, string what)
@@ -61,9 +64,9 @@ public partial class DevSmoke : Node
     public override void _PhysicsProcess(double delta)
     {
         _frame++;
-        var g = Game.Instance;
-        var p = g.Player;
-        var w = g.World;
+        var m = _main;
+        var p = m.Player;
+        var w = m.World;
         if (p == null || w == null) return;
         bool horse = w.Horse != null;
 
@@ -73,11 +76,11 @@ public partial class DevSmoke : Node
                 Check(p.GlobalPosition.Y > -400f, $"player standing at spawn {p.GlobalPosition}");
                 Check(w.Npcs.Count > 0, $"npcs spawned: {w.Npcs.Count}");
                 Check(p.Weapons.Count > 0 && p.CurrentWeaponId == p.WeaponOrder[0], $"weapons: {p.CurrentWeaponId}, {p.Weapons.Count} carried");
-                Check(horse == g.Data.World.HorseEnabled, horse ? "horse spawned" : "no horse on this map (as configured)");
-                if (g.Data.OverridesApplied > 0) Check(FootprintBuilder.ModelsPlaced > 0, $"overrides: {g.Data.OverridesApplied} buildings customised, {FootprintBuilder.ModelsPlaced} real models placed, {FootprintBuilder.FacadesPlaced} facade photos");
-                if (g.Data.World.Buildings.Count > 100)
+                Check(horse == m.Data.World.HorseEnabled, horse ? "horse spawned" : "no horse on this map (as configured)");
+                if (m.Data.OverridesApplied > 0) Check(FootprintBuilder.ModelsPlaced > 0, $"overrides: {m.Data.OverridesApplied} buildings customised, {FootprintBuilder.ModelsPlaced} real models placed, {FootprintBuilder.FacadesPlaced} facade photos");
+                if (m.Data.World.Buildings.Count > 100)
                 {
-                    int addressed = AddressIndex.Entries.Count, total = g.Data.World.Buildings.Count;
+                    int addressed = AddressIndex.Entries.Count, total = m.Data.World.Buildings.Count;
                     Check(addressed * 10 >= total * 9, $"addresses: {addressed} of {total} buildings have a street number and street");
                     Check(w.Plates != null && w.Plates.Count * 2 >= addressed, $"number plates registered: {w.Plates?.Count ?? 0}");
                     Check(AddressIndex.SuburbAt(new Vector2(p.GlobalPosition.X, p.GlobalPosition.Z)) != "", "spawn is inside a named suburb: " + AddressIndex.SuburbAt(new Vector2(p.GlobalPosition.X, p.GlobalPosition.Z)));
@@ -128,7 +131,7 @@ public partial class DevSmoke : Node
                 {
                     // on the road centreline a few metres ahead of the player, along the spawn street, so walls
                     // and kerbs cannot catch it and the focus check does not depend on how far the walk got
-                    float spawnYaw = Mathf.DegToRad(g.Data.World.PlayerSpawnFacing);
+                    float spawnYaw = Mathf.DegToRad(m.Data.World.PlayerSpawnFacing);
                     var ahead = new Vector2(-Mathf.Sin(spawnYaw), -Mathf.Cos(spawnYaw));
                     var carXZ = new Vector2(p.GlobalPosition.X, p.GlobalPosition.Z) + ahead * 3.5f;
                     w.PlayerCar.Sleeping = false;
@@ -178,7 +181,7 @@ public partial class DevSmoke : Node
                 if (p.Driving != null) { Release("move_left"); Check(p.Driving.GlobalTransform.Basis.Y.Dot(Vector3.Up) > 0.7f, $"car still on its wheels after hard turns both ways (tilt {Mathf.RadToDeg(Mathf.Acos(Mathf.Clamp(p.Driving.GlobalTransform.Basis.Y.Dot(Vector3.Up), -1f, 1f))):0} deg, {p.Driving.ForwardSpeed * 3.6f:0} km/h)"); }
                 Check(p.GlobalPosition.DistanceTo(_mark) > (p.Driving != null ? 8f : 12f), (horse ? "galloped" : p.Driving != null ? "drove" : "sprinted") + $" {p.GlobalPosition.DistanceTo(_mark):0.0} m");
                 if (horse) Check(w.Horse!.Stamina < 100f, $"horse stamina drained to {w.Horse.Stamina:0}");
-                GD.Print($"SMOKE: fps {Engine.GetFramesPerSecond():0} while moving, quality {g.GraphicsQuality}");
+                GD.Print($"SMOKE: fps {Engine.GetFramesPerSecond():0} while moving, quality {m.Settings.GraphicsQuality}");
                 if (w.Plates != null && w.Plates.Count > 0) Check(w.Plates.Live > 0, $"number plates streamed in around the player: {w.Plates.Live}");
                 Shot(horse ? "2-riding" : p.Driving != null ? "2-driving" : "2-moving");
                 if (horse || p.Driving != null) Press("interact");
@@ -190,38 +193,38 @@ public partial class DevSmoke : Node
             {
                 if (horse) Check(!p.IsMounted, "dismounted");
                 if (w.PlayerCar != null) { Check(p.Driving == null && p.GlobalPosition.DistanceTo(w.PlayerCar.GlobalPosition) < 6f, "got out of the car beside it"); _carMark = w.PlayerCar.GlobalPosition; }
-                var giver = g.Data.Missions.Count > 0 ? w.FindNpc(g.Data.Missions[0].Giver) : null;
+                var giver = m.Data.Missions.Count > 0 ? w.FindNpc(m.Data.Missions[0].Giver) : null;
                 _talker = giver ?? w.Npcs.Find(n => !string.IsNullOrEmpty(n.Data.Dialogue) && !n.IsDead);
                 Check(_talker != null, "someone to talk to exists: " + (_talker?.Data.Name ?? "nobody"));
-                if (_talker != null) g.Dialogue.Start(_talker.Data.Dialogue, _talker);
+                if (_talker != null) m.Dialogue.Start(_talker.Data.Dialogue, _talker);
                 break;
             }
             case 358:
                 if (_talker != null)
                 {
-                    Check(g.Dialogue.IsActive && g.Main!.DialogueBox.IsOpen && g.InputLocked, "dialogue opened and input locked");
-                    g.Dialogue.Choose(0);
+                    Check(m.Dialogue.IsActive && m.DialogueBox.IsOpen && m.Ui.InputLocked, "dialogue opened and input locked");
+                    m.Dialogue.Choose(0);
                 }
                 break;
             case 364:
-                if (g.Dialogue.IsActive) g.Dialogue.End();
+                if (m.Dialogue.IsActive) m.Dialogue.End();
                 break;
             case 370:
-                Check(!g.Dialogue.IsActive && !g.InputLocked, "dialogue closed, input unlocked");
-                if (g.Data.Missions.Count > 0)
+                Check(!m.Dialogue.IsActive && !m.Ui.InputLocked, "dialogue closed, input unlocked");
+                if (m.Data.Missions.Count > 0)
                 {
-                    _missionId = g.Data.Missions[0].Id;
-                    _money = g.Pence;
-                    Check(g.Missions.Start(_missionId), $"mission '{_missionId}' started");
+                    _missionId = m.Data.Missions[0].Id;
+                    _money = m.Purse.Pence;
+                    Check(m.Missions.Start(_missionId), $"mission '{_missionId}' started");
                 }
                 else Check(true, "no missions on this map");
                 break;
             case 376:
-                if (_missionId != null) Check(g.Missions.MarkerPosition.HasValue, "HUD has an objective marker");
+                if (_missionId != null) Check(m.Missions.MarkerPosition.HasValue, "HUD has an objective marker");
                 if (w.PlayerCar != null) Check(w.PlayerCar.GlobalPosition.DistanceTo(_carMark) < 1.0f, $"parked car stayed put on the hill ({w.PlayerCar.GlobalPosition.DistanceTo(_carMark):0.00} m drift from ({_carMark.X:0.00}, {_carMark.Y:0.00}, {_carMark.Z:0.00}) to ({w.PlayerCar.GlobalPosition.X:0.00}, {w.PlayerCar.GlobalPosition.Y:0.00}, {w.PlayerCar.GlobalPosition.Z:0.00}), vel {w.PlayerCar.LinearVelocity.Length():0.00}, frozen {w.PlayerCar.Freeze})");
                 break;
             case 395:
-                GD.Print($"SMOKE: fps {Engine.GetFramesPerSecond():0} at quality {g.GraphicsQuality}, {GetViewport().GetVisibleRect().Size}");
+                GD.Print($"SMOKE: fps {Engine.GetFramesPerSecond():0} at quality {m.Settings.GraphicsQuality}, {GetViewport().GetVisibleRect().Size}");
                 break;
             case 420:
                 Shot("3-mission");
@@ -229,18 +232,18 @@ public partial class DevSmoke : Node
             case 600:
                 if (_missionId != null)
                 {
-                    var m = g.Data.Mission(_missionId)!;
-                    Check(g.Missions.IsDone(_missionId), $"mission '{_missionId}' completed by walking its steps");
-                    Check(g.Pence == _money + m.RewardPence, $"reward paid: {Money.Format(g.Pence - _money)}");
+                    var mission = m.Data.Mission(_missionId)!;
+                    Check(m.Missions.IsDone(_missionId), $"mission '{_missionId}' completed by walking its steps");
+                    Check(m.Purse.Pence == _money + mission.RewardPence, $"reward paid: {Money.Format(m.Purse.Pence - _money)}");
                 }
                 // the car was left far behind at the mission's first stop; H brings it round for R20
-                if (w.PlayerCar != null) { _money = g.Pence; Press("whistle"); }
+                if (w.PlayerCar != null) { _money = m.Purse.Pence; Press("whistle"); }
                 break;
             case 606:
                 if (w.PlayerCar != null)
                 {
                     Release("whistle");
-                    Check(w.PlayerCar.GlobalPosition.DistanceTo(p.GlobalPosition) < 12f && g.Pence == _money - 2000, $"H brings the car back for R20 ({w.PlayerCar.GlobalPosition.DistanceTo(p.GlobalPosition):0.0} m away, {Money.Format(_money - g.Pence)} charged)");
+                    Check(w.PlayerCar.GlobalPosition.DistanceTo(p.GlobalPosition) < 12f && m.Purse.Pence == _money - 2000, $"H brings the car back for R20 ({w.PlayerCar.GlobalPosition.DistanceTo(p.GlobalPosition):0.0} m away, {Money.Format(_money - m.Purse.Pence)} charged)");
                 }
                 break;
             case 610:
@@ -255,82 +258,82 @@ public partial class DevSmoke : Node
                 var police = w.Npcs.Find(n => n.Faction == Faction.British && !n.IsDead);
                 if (police != null)
                 {
-                    Check(g.Wanted.Level > 0, $"attacking the law raised wanted level to {g.Wanted.Level}");
+                    Check(m.Wanted.Level > 0, $"attacking the law raised wanted level to {m.Wanted.Level}");
                     Check(police.IsHostileTo(p), "they are now hostile");
-                    g.Wanted.ClearWanted();
+                    m.Wanted.ClearWanted();
                 }
                 break;
             }
             case 620:
-                g.Save();
-                Check(g.HasSave, "saved to " + ProjectSettings.GlobalizePath(Game.SavePath));
-                _money = g.Pence;
+                m.SaveGame.Save();
+                Check(m.SaveGame.HasSave, "saved to " + ProjectSettings.GlobalizePath(SaveGame.Path));
+                _money = m.Purse.Pence;
                 _health = p.Health;
-                g.AddMoney(100);
+                m.Purse.Add(100);
                 p.Health = 40;
                 break;
             case 626:
-                Check(g.Load(), "loaded save");
-                Check(g.Pence == _money && p.Health == _health, $"save restored money and health ({p.Health})");
+                Check(m.SaveGame.Load(), "loaded save");
+                Check(m.Purse.Pence == _money && p.Health == _health, $"save restored money and health ({p.Health})");
                 break;
             case 632:
-                g.Main!.PauseMenu.Toggle();
+                m.PauseMenu.Toggle();
                 break;
             case 636:
-                Check(g.Main!.PauseMenu.IsOpen && GetTree().Paused && g.InputLocked, "pause menu opens and pauses the tree");
-                g.Main.PauseMenu.Toggle();
+                Check(m.PauseMenu.IsOpen && GetTree().Paused && m.Ui.InputLocked, "pause menu opens and pauses the tree");
+                m.PauseMenu.Toggle();
                 break;
             case 640:
             {
-                Check(!GetTree().Paused && !g.InputLocked, "pause menu closes and resumes");
-                g.Main!.WorldMap.Toggle();
+                Check(!GetTree().Paused && !m.Ui.InputLocked, "pause menu closes and resumes");
+                m.WorldMap.Toggle();
                 break;
             }
             case 646:
-                Check(g.Main!.WorldMap.IsOpen && GetTree().Paused, "world map opens and pauses");
+                Check(m.WorldMap.IsOpen && GetTree().Paused, "world map opens and pauses");
                 Check(MapImage.Texture != null && MapImage.Labels.Count > 0, $"map image built with {MapImage.Labels.Count} labels");
                 Shot("6-map");
-                g.Main.WorldMap.Toggle();
+                m.WorldMap.Toggle();
                 break;
             case 652:
             {
-                Check(!g.Main!.WorldMap.IsOpen && !GetTree().Paused, "world map closes and resumes");
-                Check(MapImage.LocationName(g.Data, new Vector2(p.GlobalPosition.X, p.GlobalPosition.Z)) != "", "location name: " + MapImage.LocationName(g.Data, new Vector2(p.GlobalPosition.X, p.GlobalPosition.Z)));
+                Check(!m.WorldMap.IsOpen && !GetTree().Paused, "world map closes and resumes");
+                Check(MapImage.LocationName(m.Data, new Vector2(p.GlobalPosition.X, p.GlobalPosition.Z)) != "", "location name: " + MapImage.LocationName(m.Data, new Vector2(p.GlobalPosition.X, p.GlobalPosition.Z)));
                 if (AddressIndex.Entries.Count > 0)
                 {
                     var home = AddressIndex.Find("42 road 721");
                     Check(home != null, "address search finds 42 Road 721");
-                    if (home != null) Check(MapImage.LocationName(g.Data, home.Centre).StartsWith(home.Building.Address), "HUD names the house you stand in: " + MapImage.LocationName(g.Data, home.Centre));
+                    if (home != null) Check(MapImage.LocationName(m.Data, home.Centre).StartsWith(home.Building.Address), "HUD names the house you stand in: " + MapImage.LocationName(m.Data, home.Centre));
                     Check(AddressIndex.Find("9999999 nowhere") == null, "address search rejects an unknown address");
                 }
-                g.DayNight!.Hour = 17.55f;
-                var spawn = DataLoader.XZ(g.Data.World.PlayerSpawn);
+                m.DayNight.Hour = 17.55f;
+                var spawn = DataLoader.XZ(m.Data.World.PlayerSpawn);
                 p.Dismount();
                 p.GlobalPosition = w.Ground(spawn) + Vector3.Up;
-                p.Camera.Yaw = Mathf.DegToRad(g.Data.World.PlayerSpawnFacing);
+                p.Camera.Yaw = Mathf.DegToRad(m.Data.World.PlayerSpawnFacing);
                 break;
             }
             case 700:
-                Check(!g.DayNight!.IsNight && g.DayNight.Hour > 17f, $"clock advanced to {g.DayNight.TimeText}");
+                Check(!m.DayNight.IsNight && m.DayNight.Hour > 17f, $"clock advanced to {m.DayNight.TimeText}");
                 Shot("4-sunset");
-                g.DayNight.Hour = 21.5f;
-                g.Main!.Weather.Force(Veld.World.Weather.State.Storm);
+                m.DayNight.Hour = 21.5f;
+                m.Weather.Force(Veld.World.Weather.State.Storm);
                 break;
             case 740:
-                Check(g.Main!.Weather.Rain > 0.9f && g.Main.Weather.Describe() == "thunderstorm", "weather forced to a thunderstorm: rain " + g.Main.Weather.Rain.ToString("0.00"));
+                Check(m.Weather.Rain > 0.9f && m.Weather.Describe() == "thunderstorm", "weather forced to a thunderstorm: rain " + m.Weather.Rain.ToString("0.00"));
                 Shot("5-night");
                 break;
             case 760:
-                DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(Game.SavePath));
+                DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(SaveGame.Path));
                 GD.Print($"SMOKE RESULT: {_pass} passed, {_fail} failed");
                 GetTree().Quit(_fail > 0 ? 1 : 0);
                 break;
         }
 
         // walk the active mission's steps: teleport to goto targets, defeat kill groups, report talks
-        if (_missionId != null && _frame >= 380 && _frame < 600 && _frame % 20 == 0 && g.Missions.Active != null)
+        if (_missionId != null && _frame >= 380 && _frame < 600 && _frame % 20 == 0 && m.Missions.Active != null)
         {
-            var step = g.Missions.CurrentStep;
+            var step = m.Missions.CurrentStep;
             if (step == null) return;
             switch (step.Type)
             {
@@ -346,7 +349,7 @@ public partial class DevSmoke : Node
                     break;
                 case "talk":
                 case "return":
-                    g.Missions.OnTalked(string.IsNullOrEmpty(step.Target) ? g.Missions.Active.Giver : step.Target);
+                    m.Missions.OnTalked(string.IsNullOrEmpty(step.Target) ? m.Missions.Active.Giver : step.Target);
                     break;
             }
         }

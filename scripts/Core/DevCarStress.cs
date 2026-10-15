@@ -34,6 +34,7 @@ public partial class DevCarStress : Node
     public override void _Ready()
     {
         ProcessMode = ProcessModeEnum.Always;
+        AddChild(new DevInputShield { Name = "InputShield" });
         foreach (var a in OS.GetCmdlineUserArgs())
             if (a.StartsWith("--carstress=") && int.TryParse(a.Substring(12), out var n)) _count = n;
         var w = Game.Instance.World!;

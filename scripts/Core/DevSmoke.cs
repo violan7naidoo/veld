@@ -28,6 +28,7 @@ public partial class DevSmoke : Node
     public override void _Ready()
     {
         ProcessMode = ProcessModeEnum.Always;
+        AddChild(new DevInputShield { Name = "InputShield" });
         var args = OS.GetCmdlineUserArgs();
         foreach (var a in args)
         {
@@ -115,7 +116,7 @@ public partial class DevSmoke : Node
                 Check(!p.DeadEyeActive && Engine.TimeScale > 0.99, "Dead Eye ends when aiming stops");
                 break;
             case 152:
-                if (w.PlayerCar != null) { Check(p.Focus is Vehicle, "the car is the interaction focus"); Press("interact"); }
+                if (w.PlayerCar != null) { Check(p.Focus is Vehicle, $"the car is the interaction focus ({p.GlobalPosition.DistanceTo(w.PlayerCar.GlobalPosition):0.0} m away)"); Press("interact"); }
                 break;
             case 158:
                 if (w.PlayerCar != null) Release("interact");
@@ -125,11 +126,11 @@ public partial class DevSmoke : Node
                 if (horse) w.Horse!.PlaceAt(p.GlobalPosition + p.Camera.FlatForward * 2.2f + Vector3.Up * 0.3f, p.Camera.Yaw + Mathf.Pi / 2);
                 if (w.PlayerCar != null)
                 {
-                    // on the road centreline a few metres ahead of the spawn, so walls and kerbs cannot catch it
-                    var spawnXZ = DataLoader.XZ(g.Data.World.PlayerSpawn);
+                    // on the road centreline a few metres ahead of the player, along the spawn street, so walls
+                    // and kerbs cannot catch it and the focus check does not depend on how far the walk got
                     float spawnYaw = Mathf.DegToRad(g.Data.World.PlayerSpawnFacing);
                     var ahead = new Vector2(-Mathf.Sin(spawnYaw), -Mathf.Cos(spawnYaw));
-                    var carXZ = spawnXZ + ahead * 7.5f;
+                    var carXZ = new Vector2(p.GlobalPosition.X, p.GlobalPosition.Z) + ahead * 3.5f;
                     w.PlayerCar.Sleeping = false;
                     w.PlayerCar.GlobalTransform = new Transform3D(Basis.Identity.Rotated(Vector3.Up, spawnYaw), w.Ground(carXZ) + Vector3.Up * 0.6f);
                     w.PlayerCar.LinearVelocity = Vector3.Zero;

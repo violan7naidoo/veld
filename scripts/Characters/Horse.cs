@@ -39,10 +39,21 @@ public partial class Horse : CharacterBody3D, IInteractable
     private float _speed; // current forward speed
     private float _prevYaw, _yawRate, _lean;
     private const float Walk = 2.2f, Trot = 6.5f, Gallop = 12.5f, Gravity = 9.8f;
+    private Main _main = null!;
+    private GameData _data = null!;
+    private Notifier _notifier = null!;
+
+    /// <summary>Call between Instantiate and AddChild; _Ready reads the horse's name from the data.</summary>
+    public void Init(Main main, GameData data, Notifier notifier)
+    {
+        _main = main;
+        _data = data;
+        _notifier = notifier;
+    }
 
     public override void _Ready()
     {
-        HorseName = Game.Instance.Data.World.HorseName;
+        HorseName = _data.World.HorseName;
         AddChild(new CollisionShape3D { Shape = new CapsuleShape3D { Radius = 0.45f, Height = 2.0f }, Position = new Vector3(0, 0.95f, 0), Rotation = new Vector3(Mathf.Pi / 2, 0, 0) });
         FloorMaxAngle = Mathf.DegToRad(50f);
         FloorSnapLength = 0.5f;
@@ -154,11 +165,11 @@ public partial class Horse : CharacterBody3D, IInteractable
     public void Whistle(Player player)
     {
         if (IsRidden) return;
-        Game.Instance.Main?.Sfx.Whistle(player.GlobalPosition);
+        _main.Sfx.Whistle(player.GlobalPosition);
         float d = GlobalPosition.DistanceTo(player.GlobalPosition);
-        if (d > 450f) { Game.Instance.Notify(HorseName + " is too far away to hear you."); return; }
+        if (d > 450f) { _notifier.Notify(HorseName + " is too far away to hear you."); return; }
         _state = State.Coming;
-        Game.Instance.Notify("You whistle for " + HorseName + ".");
+        _notifier.Notify("You whistle for " + HorseName + ".");
     }
 
     /// <summary>Teleport the horse and make this its new resting place.</summary>
@@ -222,8 +233,7 @@ public partial class Horse : CharacterBody3D, IInteractable
             }
             case State.Coming:
             {
-                var player = Game.Instance.Player;
-                if (player == null) { _state = State.Idle; break; }
+                var player = _main.Player;
                 _target = player.GlobalPosition;
                 float d = Flat(_target - GlobalPosition).Length();
                 if (d < 2.6f) { _state = State.Idle; _home = GlobalPosition; _wait = 4f; break; }
@@ -254,8 +264,8 @@ public partial class Horse : CharacterBody3D, IInteractable
                 {
                     var rnd = new RandomNumberGenerator();
                     var p = _home + new Vector3(rnd.RandfRange(-10f, 10f), 0, rnd.RandfRange(-10f, 10f));
-                    var terrain = Game.Instance.World?.Terrain;
-                    if (terrain != null && terrain.InBounds(p.X, p.Z) && terrain.Slope(p.X, p.Z) < 0.2f) { _target = p; _state = State.Wander; }
+                    var terrain = _main.World.Terrain;
+                    if (terrain.InBounds(p.X, p.Z) && terrain.Slope(p.X, p.Z) < 0.2f) { _target = p; _state = State.Wander; }
                     else _wait = 2f;
                 }
                 break;
@@ -315,7 +325,7 @@ public partial class Horse : CharacterBody3D, IInteractable
         _tail.Rotation = new Vector3(-0.35f + Mathf.Sin(_phase * 0.5f) * 0.1f * amp, Mathf.Sin(_idle += dt * 1.3f) * 0.18f, 0);
         _dust.Emitting = gallop && IsOnFloor();
         _hoof += s * dt;
-        if (_hoof > 2.4f && IsOnFloor() && s > 1.5f) { _hoof = 0f; Game.Instance.Main?.Sfx.Hoof(GlobalPosition, gallop); }
+        if (_hoof > 2.4f && IsOnFloor() && s > 1.5f) { _hoof = 0f; _main.Sfx.Hoof(GlobalPosition, gallop); }
     }
 
     private float _idle;

@@ -43,6 +43,7 @@ public partial class Main : Node3D
         DayNight.Weather = Weather;
 
         World = new WorldBuilder { Name = "World" };
+        World.Init(this, game.Purse, game.Reputation, game.Notifier, game.Missions, game.Dialogue, game.Wanted);
         AddChild(World);
         World.Build(game.Data);
         DayNight.World = World;

@@ -43,6 +43,27 @@ public partial class Npc : CharacterBody3D, IInteractable, INpcView
     private bool _pendingDead;
     private const float Gravity = 9.8f;
     private const float WalkSpeed = 1.6f, RunSpeed = 5.2f;
+    private Main _main = null!;
+    private GameData _data = null!;
+    private Purse _purse = null!;
+    private Reputation _reputation = null!;
+    private Notifier _notifier = null!;
+    private MissionManager _missions = null!;
+    private DialogueSystem _dialogue = null!;
+    private WantedSystem _wanted = null!;
+
+    /// <summary>Call between Instantiate and AddChild; _Ready reads the weapon from the data.</summary>
+    public void Init(Main main, GameData data, Purse purse, Reputation reputation, Notifier notifier, MissionManager missions, DialogueSystem dialogue, WantedSystem wanted)
+    {
+        _main = main;
+        _data = data;
+        _purse = purse;
+        _reputation = reputation;
+        _notifier = notifier;
+        _missions = missions;
+        _dialogue = dialogue;
+        _wanted = wanted;
+    }
 
     public override void _Ready()
     {
@@ -57,7 +78,7 @@ public partial class Npc : CharacterBody3D, IInteractable, INpcView
         _model.Configure(Faction, variant);
         AddChild(_model);
 
-        if (!string.IsNullOrEmpty(Data.Weapon) && Game.Instance.Data.Weapons.TryGetValue(Data.Weapon, out var wd))
+        if (!string.IsNullOrEmpty(Data.Weapon) && _data.Weapons.TryGetValue(Data.Weapon, out var wd))
         {
             Weapon = new Weapon(wd) { Reserve = 999 };
             _model.ShowWeapon(wd.Kind);
@@ -94,13 +115,13 @@ public partial class Npc : CharacterBody3D, IInteractable, INpcView
         {
             _looted = true;
             int pence = Faction == Faction.Outlaw ? GD.RandRange(18, 60) : GD.RandRange(1, 9);
-            if (Faction != Faction.Outlaw) Game.Instance.Reputation.Lose(1);
-            Game.Instance.AddMoney(pence);
-            Game.Instance.Main?.Sfx.Coins(GlobalPosition);
-            Game.Instance.Notify("You find " + Money.Format(pence) + " on " + Data.Name + ".");
+            if (Faction != Faction.Outlaw) _reputation.Lose(1);
+            _purse.Add(pence);
+            _main.Sfx.Coins(GlobalPosition);
+            _notifier.Notify("You find " + Money.Format(pence) + " on " + Data.Name + ".");
             return;
         }
-        Game.Instance.Dialogue.Start(Data.Dialogue, this);
+        _dialogue.Start(Data.Dialogue, this);
     }
 
     // ------------------------------------------------------------------ hostility
@@ -112,8 +133,8 @@ public partial class Npc : CharacterBody3D, IInteractable, INpcView
         if (Provoked && Weapon != null) return true;
         return Faction switch
         {
-            Faction.British => Game.Instance.Wanted.Level > 0,
-            Faction.Boer => Game.Instance.Reputation.ResidentsHostile,
+            Faction.British => _wanted.Level > 0,
+            Faction.Boer => _reputation.ResidentsHostile,
             _ => false,
         };
     }
@@ -126,10 +147,10 @@ public partial class Npc : CharacterBody3D, IInteractable, INpcView
         if (attacker is Player p)
         {
             Provoked = true;
-            if (Game.Instance.World != null && !string.IsNullOrEmpty(Data.Group))
-                foreach (var n in Game.Instance.World.Group(Data.Group)) n.Provoked = true;
-            Game.Instance.Wanted.ReportAttack(this, p, killed);
-            if (Faction is Faction.Civilian or Faction.Boer) Game.Instance.Reputation.Lose(killed ? 2 : 1);
+            if (!string.IsNullOrEmpty(Data.Group))
+                foreach (var n in _main.World.Group(Data.Group)) n.Provoked = true;
+            _wanted.ReportAttack(this, p, killed);
+            if (Faction is Faction.Civilian or Faction.Boer) _reputation.Lose(killed ? 2 : 1);
             if (Weapon == null) StartFlee(p.GlobalPosition);
             else _reactTimer = 0.2f;
         }
@@ -146,8 +167,8 @@ public partial class Npc : CharacterBody3D, IInteractable, INpcView
         CollisionLayer = 0;
         CollisionMask = Layers.Terrain;
         Velocity = Vector3.Zero;
-        Game.Instance.World!.DeadNpcs.Add(Data.Id);
-        Game.Instance.Missions.OnNpcKilled(this);
+        _main.World.DeadNpcs.Add(Data.Id);
+        _missions.OnNpcKilled(this);
     }
 
     /// <summary>Used when loading a save: the NPC is already dead, no effects, no mission events.</summary>
@@ -191,8 +212,7 @@ public partial class Npc : CharacterBody3D, IInteractable, INpcView
             return;
         }
         Weapon?.Tick(dt);
-        var player = Game.Instance.Player;
-        if (player == null) return;
+        var player = _main.Player;
         var toPlayer = player.GlobalPosition - GlobalPosition;
         float dist = toPlayer.Length();
         _label.Visible = dist < 14f && !IsHostileTo(player);
@@ -249,7 +269,7 @@ public partial class Npc : CharacterBody3D, IInteractable, INpcView
                 break;
             case State.Patrol:
             {
-                var p = Game.Instance.World!.Ground(DataLoader.XZ(Data.Patrol[_patrolIndex]));
+                var p = _main.World.Ground(DataLoader.XZ(Data.Patrol[_patrolIndex]));
                 if (Flat(p - GlobalPosition).Length() < 1.2f)
                 {
                     _wait -= dt;
@@ -319,8 +339,8 @@ public partial class Npc : CharacterBody3D, IInteractable, INpcView
         var aimAt = player.GlobalPosition + new Vector3(0, player.IsMounted ? 1.5f : 1.1f, 0);
         var shot = w.Fire(this, muzzle, aimAt - muzzle, spread, new Godot.Collections.Array<Rid> { GetRid() });
         ShotEffects.Show(GetParent(), shot, muzzle);
-        Game.Instance.Main?.Sfx.Gunshot(w.Data.Kind, GlobalPosition);
-        Game.Instance.Wanted.OnGunfire(GlobalPosition, this);
+        _main.Sfx.Gunshot(w.Data.Kind, GlobalPosition);
+        _wanted.OnGunfire(GlobalPosition, this);
         if (shot.Hit && shot.Collider is Player p) p.TakeDamage(Mathf.Max(8, w.Data.Damage / 3), this);
         else if (shot.Hit && shot.Collider is Npc other && other != this) other.TakeDamage(w.Data.Damage / 2, this);
         _reactTimer = (float)GD.RandRange(0.4, 1.4);

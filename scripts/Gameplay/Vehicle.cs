@@ -31,6 +31,17 @@ public partial class Vehicle : VehicleBody3D, IInteractable
     private float _hornCooldown;
     private float _parkedFor;
     private int _stillFrames;
+    private Main _main = null!;
+    private Purse _purse = null!;
+    private Notifier _notifier = null!;
+
+    /// <summary>Call before adding to the tree; WorldBuilder.AddVehicle does this for every vehicle.</summary>
+    public void Init(Main main, Purse purse, Notifier notifier)
+    {
+        _main = main;
+        _purse = purse;
+        _notifier = notifier;
+    }
 
     private float Power => Kind == "taxi" ? 5200f : 4200f;
     private float MaxSpeed => Kind == "taxi" ? 27f : 33f;
@@ -139,7 +150,7 @@ public partial class Vehicle : VehicleBody3D, IInteractable
             Sleeping = false;
             if (_engine == null)
             {
-                _engine = Game.Instance.Main?.Sfx.EngineLoop();
+                _engine = _main.Sfx.EngineLoop();
                 if (_engine != null) AddChild(_engine);
             }
             _engine?.Play();
@@ -158,21 +169,20 @@ public partial class Vehicle : VehicleBody3D, IInteractable
     {
         if (Occupied) return;
         float d = GlobalPosition.DistanceTo(player.GlobalPosition);
-        if (d < 25f) { Game.Instance.Notify("Your car is right here."); return; }
-        if (!Game.Instance.TrySpend(2000)) { Game.Instance.Notify("Getting the car brought round costs R20 and you are short."); return; }
+        if (d < 25f) { _notifier.Notify("Your car is right here."); return; }
+        if (!_purse.TrySpend(2000)) { _notifier.Notify("Getting the car brought round costs R20 and you are short."); return; }
         var yaw = player.Camera.Yaw;
         var fwd = new Vector3(-Mathf.Sin(yaw), 0, -Mathf.Cos(yaw));
         var right = new Vector3(Mathf.Cos(yaw), 0, -Mathf.Sin(yaw));
         var at = player.GlobalPosition + fwd * 6f + right * 2.5f;
-        var terrain = Game.Instance.World?.Terrain;
-        if (terrain != null) at.Y = terrain.GetHeight(at.X, at.Z) + 0.6f;
+        at.Y = _main.World.Terrain.GetHeight(at.X, at.Z) + 0.6f;
         Freeze = false;
         GlobalTransform = new Transform3D(Basis.Identity.Rotated(Vector3.Up, yaw), at);
         LinearVelocity = Vector3.Zero; AngularVelocity = Vector3.Zero;
         _parkedFor = 0f;
         _stillFrames = 0;
-        Game.Instance.Main?.Sfx.Horn(at);
-        Game.Instance.Notify("A mate drops your car off beside you. R20 for petrol.");
+        _main.Sfx.Horn(at);
+        _notifier.Notify("A mate drops your car off beside you. R20 for petrol.");
     }
 
     /// <summary>Where the driver stands after getting out: beside the driver's door, on the ground.</summary>
@@ -180,8 +190,7 @@ public partial class Vehicle : VehicleBody3D, IInteractable
     {
         var side = GlobalTransform.Basis.X * -1.7f;
         var p = GlobalPosition + side + new Vector3(0, 0.3f, 0);
-        var terrain = Game.Instance.World?.Terrain;
-        if (terrain != null) p.Y = Mathf.Max(p.Y, terrain.GetHeight(p.X, p.Z) + 0.2f);
+        p.Y = Mathf.Max(p.Y, _main.World.Terrain.GetHeight(p.X, p.Z) + 0.2f);
         return p;
     }
 
@@ -222,7 +231,7 @@ public partial class Vehicle : VehicleBody3D, IInteractable
             else { EngineForce = 0f; Brake = 2f; }
             if (_handbrake) { Brake = 45f; _braking = true; }
             _hornCooldown -= dt;
-            if (_horn && _hornCooldown <= 0f) { _hornCooldown = 0.7f; Game.Instance.Main?.Sfx.Horn(GlobalPosition); }
+            if (_horn && _hornCooldown <= 0f) { _hornCooldown = 0.7f; _main.Sfx.Horn(GlobalPosition); }
             if (_engine != null) _engine.PitchScale = 0.55f + Mathf.Clamp(Mathf.Abs(speed) / MaxSpeed, 0f, 1f) * 1.3f + Mathf.Abs(_throttle) * 0.15f;
         }
         else
@@ -257,7 +266,7 @@ public partial class Vehicle : VehicleBody3D, IInteractable
             ApplyCentralForce(-Vector3.Up * speed * speed * 6f);
         }
 
-        float night = Game.Instance.DayNight?.NightFactor ?? 0f;
+        float night = _main.DayNight.NightFactor;
         bool lightsOn = Occupied && night > 0.15f;
         foreach (var l in _headlights) l.Visible = lightsOn;
         _headMat.EmissionEnergyMultiplier = lightsOn ? 3f : 0f;
@@ -271,9 +280,9 @@ public partial class Vehicle : VehicleBody3D, IInteractable
         if (body is Npc npc && !npc.IsDead)
         {
             npc.TakeDamage((int)(speed * 6f), Driver);
-            Game.Instance.Main?.Sfx.Hit(npc.GlobalPosition);
+            _main.Sfx.Hit(npc.GlobalPosition);
         }
         else if (body is Horse horse) horse.Spook();
-        else if (speed > 9f) Game.Instance.Main?.Sfx.Hit(GlobalPosition);
+        else if (speed > 9f) _main.Sfx.Hit(GlobalPosition);
     }
 }

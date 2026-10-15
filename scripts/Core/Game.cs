@@ -71,7 +71,6 @@ public partial class Game : Node
     // Forwarders for the call sites 18b to 18e move onto the objects above; each goes with its last caller.
     public int Pence => Purse.Pence;
     public void AddMoney(int pence) => Purse.Add(pence);
-    public bool TrySpend(int pence) => Purse.TrySpend(pence);
     public void Notify(string message) => Notifier.Notify(message);
     public Quality GraphicsQuality { get => Settings.GraphicsQuality; set => Settings.GraphicsQuality = value; }
     public bool InputLocked { get => Ui.InputLocked; set => Ui.InputLocked = value; }

@@ -23,8 +23,27 @@ public partial class WorldBuilder : Node3D
     public Dictionary<string, Vector3> TownCenters { get; } = new();
 
     private GameData _data = null!;
+    private Main _main = null!;
+    private Purse _purse = null!;
+    private Reputation _reputation = null!;
+    private Notifier _notifier = null!;
+    private MissionManager _missions = null!;
+    private DialogueSystem _dialogue = null!;
+    private WantedSystem _wanted = null!;
     private readonly PackedScene _npcScene = GD.Load<PackedScene>("res://scenes/Npc.tscn");
     private readonly PackedScene _horseScene = GD.Load<PackedScene>("res://scenes/Horse.tscn");
+
+    /// <summary>Call before Build; every character and vehicle this builder spawns is given these.</summary>
+    public void Init(Main main, Purse purse, Reputation reputation, Notifier notifier, MissionManager missions, DialogueSystem dialogue, WantedSystem wanted)
+    {
+        _main = main;
+        _purse = purse;
+        _reputation = reputation;
+        _notifier = notifier;
+        _missions = missions;
+        _dialogue = dialogue;
+        _wanted = wanted;
+    }
 
     public void Build(GameData data)
     {
@@ -154,6 +173,7 @@ public partial class WorldBuilder : Node3D
         if (!data.World.HorseEnabled) return;
         Horse = _horseScene.Instantiate<Horse>();
         Horse.Name = "Horse";
+        Horse.Init(_main, data, _notifier);
         var pos = Resolve(null, data.World.HorseSpawnTown, data.World.HorseSpawnOffset);
         if (string.IsNullOrEmpty(data.World.HorseSpawnTown)) pos = Resolve(data.World.PlayerSpawn, "", new[] { 0f, 0f }) + new Vector3(4, 0, 2);
         Horse.Position = pos + new Vector3(0, 1.2f, 0);
@@ -176,6 +196,7 @@ public partial class WorldBuilder : Node3D
     public Vehicle AddVehicle(string kind, Color paint, Vector3 position, float yaw)
     {
         var v = Vehicle.Create(kind, paint);
+        v.Init(_main, _purse, _notifier);
         v.Position = position;
         v.Rotation = new Vector3(0, yaw, 0);
         AddChild(v);
@@ -212,6 +233,7 @@ public partial class WorldBuilder : Node3D
         var npc = _npcScene.Instantiate<Npc>();
         npc.Name = "Npc_" + data.Id;
         npc.Data = data;
+        npc.Init(_main, _data, _purse, _reputation, _notifier, _missions, _dialogue, _wanted);
         npc.Position = Resolve(data.Position, data.Town, data.Offset) + new Vector3(0, 1.0f, 0);
         AddChild(npc);
         Npcs.Add(npc);

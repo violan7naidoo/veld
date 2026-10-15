@@ -39,7 +39,7 @@
   - [x] 18b. **UI off the singleton** - `Hud`, `Minimap`, `DialogueBox`, `PauseMenu` and `WorldMap` receive their services and siblings through `Init` from `Main` (32 sites)
   - [x] 18c. **World and audio off the singleton** - `Terrain`, `RoadBuilder`, `FootprintBuilder`, `WorldBuilder`, `DayNight`, `Weather` and `Sfx`; `DeadNpcs` moves into `WorldBuilder` (13 sites)
   - [x] 18d. **Player and camera off the singleton** - `Player` and `CameraRig` (26 sites)
-  - [ ] 18e. **NPCs, horse and vehicles off the singleton** - `Npc`, `Horse` and `Vehicle` (36 sites)
+  - [x] 18e. **NPCs, horse and vehicles off the singleton** - `Npc`, `Horse` and `Vehicle` (36 sites)
   - [ ] 18f. **Delete the autoload** - `Main` loads the data and composes every service and system, the live adapters read `Main`, the dev harnesses follow, `Game.cs` and the autoload entry go; `Game.Instance` appears nowhere (12 sites)
 - [ ] 19. **Simulation and presentation split** - a `Veld.Sim` library holding world, mission, NPC and economy state at a fixed tick; Godot nodes render and forward input
 

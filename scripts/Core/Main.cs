@@ -71,7 +71,7 @@ public partial class Main : Node3D
 
         Player = GD.Load<PackedScene>("res://scenes/Player.tscn").Instantiate<Player>();
         Player.Name = "Player";
-        Player.Init(this, Data, Sim.Purse, Notifier, Ui, Sim.Wanted);
+        Player.Init(this, Data, Sim.Player, Ui);
         var spawn = DataLoader.XZ(Data.World.PlayerSpawn);
         Player.Position = new Vector3(spawn.X, World.Terrain.GetHeight(spawn.X, spawn.Y) + 1.0f, spawn.Y);
         Player.Rotation = new Vector3(0, Mathf.DegToRad(Data.World.PlayerSpawnFacing), 0);

@@ -20,7 +20,7 @@ public partial class Npc : CharacterBody3D, IInteractable, INpcView
     public Faction Faction => Brain.Faction;
     public int Health => Brain.Health;
     public bool IsDead => Brain.IsDead;
-    public Weapon? Weapon { get; private set; }
+    public WeaponState? Weapon { get; private set; }
     public bool Provoked { get => Brain.Provoked; set => Brain.Provoked = value; }
 
     // the gameplay systems see this character through INpcView; explicit so Node.Name stays Godot's
@@ -60,7 +60,7 @@ public partial class Npc : CharacterBody3D, IInteractable, INpcView
 
         if (!string.IsNullOrEmpty(Data.Weapon) && _data.Weapons.TryGetValue(Data.Weapon, out var wd))
         {
-            Weapon = new Weapon(wd) { Reserve = 999 };
+            Weapon = new WeaponState(wd) { Reserve = 999 };
             _model.ShowWeapon(wd.Kind);
         }
 
@@ -183,7 +183,7 @@ public partial class Npc : CharacterBody3D, IInteractable, INpcView
         var w = Weapon!;
         var muzzle = _model.MuzzleWorld;
         var aimAt = player.GlobalPosition + new Vector3(0, player.IsMounted ? 1.5f : 1.1f, 0);
-        var shot = w.Fire(this, muzzle, aimAt - muzzle, spreadDegrees, new Godot.Collections.Array<Rid> { GetRid() });
+        var shot = Shooting.Fire(this, w, muzzle, aimAt - muzzle, spreadDegrees, new Godot.Collections.Array<Rid> { GetRid() });
         ShotEffects.Show(GetParent(), shot, muzzle);
         _main.Sfx.Gunshot(w.Data.Kind, GlobalPosition);
         if (shot.Hit && shot.Collider is Player p) p.TakeDamage(Mathf.Max(8, w.Data.Damage / 3), this);

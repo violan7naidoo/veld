@@ -62,9 +62,9 @@ public sealed class SaveGame
             ActiveMission = _sim.Missions.Active?.Id,
             ActiveStep = _sim.Missions.StepIndex,
             WantedLevel = _sim.Wanted.Level,
-            Health = player.Health,
-            Weapon = player.CurrentWeaponId,
-            Ammo = player.AmmoSnapshot(),
+            Health = _sim.Player.Health,
+            Weapon = _sim.Player.CurrentWeaponId,
+            Ammo = _sim.Player.AmmoSnapshot(),
         };
         using var f = FileAccess.Open(Path, FileAccess.ModeFlags.Write);
         f.StoreString(JsonSerializer.Serialize(s, DataLoader.Json));
@@ -91,8 +91,9 @@ public sealed class SaveGame
         player.Dismount();
         player.ExitVehicle();
         player.GlobalPosition = new Vector3(s.PlayerPosition[0], s.PlayerPosition[1] + 0.5f, s.PlayerPosition[2]);
-        player.Health = Math.Max(10, s.Health);
-        player.RestoreAmmo(s.Ammo, s.Weapon);
+        _sim.Player.Health = Math.Max(10, s.Health);
+        _sim.Player.RestoreAmmo(s.Ammo, s.Weapon);
+        player.Equip(_sim.Player.CurrentWeaponId);
         _notifier.Notify("Game loaded.");
         return true;
     }

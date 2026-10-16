@@ -22,7 +22,7 @@
 - `scripts/UI/` - HUD, minimap, world map, dialogue box, pause menu
 - `scripts/Audio/` - generated sounds
 - `data/maps/<map-id>/` - one folder per map; generated files next to hand-written ones
-- `sim/Veld.Sim/` - the simulation library: the `Simulation` and the sim clock, the data model and loader, money, factions, the ports (world, notifier, dialogue view, clock, dice), purse, standing, notifier, missions, dialogue, wanted system, and under `Characters/` the brain, senses and intent of every NPC; no engine access
+- `sim/Veld.Sim/` - the simulation library: the `Simulation` and the sim clock, the data model and loader, money, factions, the ports (world, notifier, dialogue view, clock, dice), purse, standing, notifier, missions, dialogue, wanted system, and under `Characters/` the brain, senses and intent of every NPC and the `PlayerState` with its `WeaponState`s; no engine access
 - `tests/Veld.Tests/` - unit tests over `sim/Veld.Sim/`; the test project references the library, never the game
 
 One system per file. A file is named after the type it holds.
@@ -78,9 +78,13 @@ One system per file. A file is named after the type it holds.
   decide, bodies act: an `NpcBrain` (item 19c) owns a character's hostility,
   state machine, targets, shots and loot, and the `Npc` node feeds it
   `NpcSenses` every physics frame and carries out its `NpcIntent` (steering,
-  raycasts, effects, animation). Dice roll through the `IRandom` port. New
-  simulation code goes in the library and is driven from `Tick`; item 19d
-  moves player and world state inside it.
+  raycasts, effects, animation). Dice roll through the `IRandom` port. The
+  `PlayerState` (item 19d) owns health, stamina, Dead Eye, the weapons as
+  `WeaponState`s, the mount and death; the `Player` node feeds it each
+  frame's input and renders death, respawn and Dead Eye through its events,
+  and both bodies fire through one `Shooting.Fire`. New simulation code
+  goes in the library and is driven from `Tick`; item 19e makes the save a
+  snapshot of the simulation.
 
 ## Content rules
 

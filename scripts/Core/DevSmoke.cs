@@ -76,7 +76,7 @@ public partial class DevSmoke : Node
             case 30:
                 Check(p.GlobalPosition.Y > -400f, $"player standing at spawn {p.GlobalPosition}");
                 Check(w.Npcs.Count > 0, $"npcs spawned: {w.Npcs.Count}");
-                Check(p.Weapons.Count > 0 && p.CurrentWeaponId == p.WeaponOrder[0], $"weapons: {p.CurrentWeaponId}, {p.Weapons.Count} carried");
+                Check(p.Weapons.Count > 0 && p.CurrentWeaponId == p.Weapons[0].Data.Id, $"weapons: {p.CurrentWeaponId}, {p.Weapons.Count} carried");
                 Check(horse == m.Data.World.HorseEnabled, horse ? "horse spawned" : "no horse on this map (as configured)");
                 if (m.Data.OverridesApplied > 0) Check(FootprintBuilder.ModelsPlaced > 0, $"overrides: {m.Data.OverridesApplied} buildings customised, {FootprintBuilder.ModelsPlaced} real models placed, {FootprintBuilder.FacadesPlaced} facade photos");
                 if (m.Data.World.Buildings.Count > 100)
@@ -102,10 +102,10 @@ public partial class DevSmoke : Node
                 break;
             case 121:
                 Check(p.CurrentWeapon!.InMag < p.CurrentWeapon.Data.MagSize, $"{p.CurrentWeapon.Data.Name} fired, {p.CurrentWeapon.InMag} rounds left in magazine");
-                if (p.WeaponOrder.Count > 1) Press("weapon_2");
+                if (p.Weapons.Count > 1) Press("weapon_2");
                 break;
             case 131:
-                if (p.WeaponOrder.Count > 1) Release("weapon_2");
+                if (p.Weapons.Count > 1) Release("weapon_2");
                 Press("aim");
                 break;
             case 136:
@@ -126,7 +126,7 @@ public partial class DevSmoke : Node
                 if (w.PlayerCar != null) Release("interact");
                 break;
             case 134:
-                if (p.WeaponOrder.Count > 1) Check(p.CurrentWeaponId == p.WeaponOrder[1], "switched to the second weapon");
+                if (p.Weapons.Count > 1) Check(p.CurrentWeaponId == p.Weapons[1].Data.Id, "switched to the second weapon");
                 if (horse) w.Horse!.PlaceAt(p.GlobalPosition + p.Camera.FlatForward * 2.2f + Vector3.Up * 0.3f, p.Camera.Yaw + Mathf.Pi / 2);
                 if (w.PlayerCar != null)
                 {

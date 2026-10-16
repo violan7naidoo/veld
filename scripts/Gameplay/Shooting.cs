@@ -1,58 +1,18 @@
 using Godot;
 using Veld.Characters;
 using Veld.Core;
-using Veld.Sim;
+using Veld.Sim.Characters;
 using Veld.World;
 
 namespace Veld.Gameplay;
 
-/// <summary>A held firearm: ammunition state plus the hitscan shot. Shared by the player and NPCs.</summary>
-public sealed class Weapon
+/// <summary>The hitscan shot: spends a round from the weapon and casts the ray. Shared by the player and NPC bodies.</summary>
+public static class Shooting
 {
-    public WeaponData Data { get; }
-    public int InMag { get; set; }
-    public int Reserve { get; set; }
-    public float Cooldown { get; set; }
-    public float ReloadLeft { get; set; }
-    public bool Reloading => ReloadLeft > 0f;
-
-    public Weapon(WeaponData data)
-    {
-        Data = data;
-        InMag = data.MagSize;
-        Reserve = data.ReserveAmmo;
-    }
-
-    public void Tick(float delta)
-    {
-        if (Cooldown > 0) Cooldown -= delta;
-        if (ReloadLeft > 0)
-        {
-            ReloadLeft -= delta;
-            if (ReloadLeft <= 0)
-            {
-                int need = Data.MagSize - InMag;
-                int take = Mathf.Min(need, Reserve);
-                InMag += take;
-                Reserve -= take;
-            }
-        }
-    }
-
-    public bool CanFire => Cooldown <= 0f && !Reloading && InMag > 0;
-
-    public bool StartReload()
-    {
-        if (Reloading || InMag == Data.MagSize || Reserve <= 0) return false;
-        ReloadLeft = Data.ReloadTime;
-        return true;
-    }
-
     /// <summary>Fires one round along `direction` from `origin`, with spread. Returns the hit (if any).</summary>
-    public ShotResult Fire(Node3D shooter, Vector3 origin, Vector3 direction, float spreadDegrees, Godot.Collections.Array<Rid> exclude)
+    public static ShotResult Fire(Node3D shooter, WeaponState weapon, Vector3 origin, Vector3 direction, float spreadDegrees, Godot.Collections.Array<Rid> exclude)
     {
-        InMag--;
-        Cooldown = 1f / Data.RateOfFire;
+        weapon.Spend();
         var spread = Mathf.DegToRad(spreadDegrees);
         var dir = direction.Normalized();
         if (spread > 0f)
@@ -62,7 +22,7 @@ public sealed class Weapon
             if (axis.LengthSquared() < 0.001f) axis = Vector3.Right;
             dir = dir.Rotated(axis, rnd.RandfRange(-spread, spread)).Rotated(dir, rnd.RandfRange(0, Mathf.Tau));
         }
-        var to = origin + dir * Data.Range;
+        var to = origin + dir * weapon.Data.Range;
         var space = shooter.GetWorld3D().DirectSpaceState;
         var query = PhysicsRayQueryParameters3D.Create(origin, to, Layers.Shootable, exclude);
         var hit = space.IntersectRay(query);
@@ -76,8 +36,6 @@ public sealed class Weapon
         }
         return result;
     }
-
-    public static float HitSpread(WeaponData data, bool aimed) => aimed ? data.SpreadDegrees : data.HipSpreadDegrees;
 }
 
 public struct ShotResult

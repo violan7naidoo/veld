@@ -3,46 +3,41 @@ using Godot;
 using Veld.Core;
 using Veld.Gameplay;
 using Veld.Sim;
+using Veld.Sim.Characters;
 
 namespace Veld.Characters;
 
 /// <summary>
-/// The player: third-person movement relative to the camera, sprint and jump, aiming and hitscan
-/// shooting with two weapons, interaction with anything that implements IInteractable, and riding
-/// (the body is parked on the horse's saddle and input is forwarded to the horse).
+/// Body and view of the player: third-person movement relative to the camera, sprint and jump, aiming
+/// and the hitscan shot, interaction with anything that implements IInteractable, riding (the body is
+/// parked on the horse's saddle and input is forwarded to the horse) and driving. Health, stamina,
+/// Dead Eye, the weapons and death live in its PlayerState; the body feeds it each frame's input and
+/// renders death, respawn and Dead Eye through the state's events.
 /// </summary>
 public partial class Player : CharacterBody3D, IPlayerView
 {
     public CameraRig Camera { get; set; } = null!;
+    public PlayerState State { get; private set; } = null!;
     Vector3 IPlayerView.Position => GlobalPosition;
-    public void Heal() => Health = MaxHealth;
-    public void GiveAmmo(string weaponId, int count)
-    {
-        if (Weapons.TryGetValue(weaponId, out var weapon)) weapon.Reserve += count;
-    }
-    public int Health { get; set; } = 100;
-    public int MaxHealth { get; } = 100;
-    public float Stamina { get; private set; } = 100f;
-    public bool IsDead { get; private set; }
+    public void Heal() => State.Heal();
+    public void GiveAmmo(string weaponId, int count) => State.GiveAmmo(weaponId, count);
+    public int Health { get => State.Health; set => State.Health = value; }
+    public float Stamina => State.Stamina;
+    public bool IsDead => State.IsDead;
+    public float DeadEye => State.DeadEye;
+    public bool DeadEyeActive => State.DeadEyeActive;
+    public IReadOnlyList<WeaponState> Weapons => State.Weapons;
+    public string? CurrentWeaponId => State.CurrentWeaponId;
+    public WeaponState? CurrentWeapon => State.CurrentWeapon;
     public Horse? Mounted { get; private set; }
     public bool IsMounted => Mounted != null;
     public Vehicle? Driving { get; private set; }
-
-    public Dictionary<string, Weapon> Weapons { get; } = new();
-    public List<string> WeaponOrder { get; } = new();
-    public string? CurrentWeaponId { get; private set; }
-    public Weapon? CurrentWeapon => CurrentWeaponId != null && Weapons.TryGetValue(CurrentWeaponId, out var w) ? w : null;
     public bool Aiming { get; private set; }
     public IInteractable? Focus { get; private set; }
     public float Speed { get; private set; }
-    /// <summary>Slow-motion aiming meter, 0..100.</summary>
-    public float DeadEye { get; private set; } = 100f;
-    public bool DeadEyeActive { get; private set; }
 
     private HumanoidModel _model = null!;
     private CollisionShape3D _shape = null!;
-    private float _sinceHit;
-    private float _deadTimer;
     private float _footstep;
     private bool _restoreCollision;
     private const float WalkSpeed = 3.4f;
@@ -51,20 +46,15 @@ public partial class Player : CharacterBody3D, IPlayerView
     private const float Gravity = 9.8f;
     private Main _main = null!;
     private GameData _data = null!;
-    private Purse _purse = null!;
-    private Notifier _notifier = null!;
     private UiState _ui = null!;
-    private WantedSystem _wanted = null!;
 
-    /// <summary>Call between Instantiate and AddChild; _Ready reads the weapon list from the data.</summary>
-    public void Init(Main main, GameData data, Purse purse, Notifier notifier, UiState ui, WantedSystem wanted)
+    /// <summary>Call between Instantiate and AddChild; the state already carries the map's weapons.</summary>
+    public void Init(Main main, GameData data, PlayerState state, UiState ui)
     {
         _main = main;
         _data = data;
-        _purse = purse;
-        _notifier = notifier;
+        State = state;
         _ui = ui;
-        _wanted = wanted;
     }
 
     public override void _Ready()
@@ -77,40 +67,20 @@ public partial class Player : CharacterBody3D, IPlayerView
         FloorMaxAngle = Mathf.DegToRad(50f);
         FloorSnapLength = 0.4f;
 
-        foreach (var id in _data.World.PlayerWeapons)
-            if (_data.Weapons.TryGetValue(id, out var wd))
-            {
-                Weapons[id] = new Weapon(wd);
-                WeaponOrder.Add(id);
-            }
-        if (WeaponOrder.Count > 0) Equip(WeaponOrder[0]);
+        State.DeadEyeChanged += ShowDeadEye;
+        State.Died += ShowDeath;
+        State.Respawned += ShowRespawn;
+        ShowWeapon();
     }
 
     // ------------------------------------------------------------------ equipment
 
     public void Equip(string? id)
     {
-        if (id != null && !Weapons.ContainsKey(id)) return;
-        CurrentWeaponId = id;
-        _model.ShowWeapon(id == null ? null : Weapons[id].Data.Kind);
+        if (State.Equip(id)) ShowWeapon();
     }
 
-    public Dictionary<string, int> AmmoSnapshot()
-    {
-        var d = new Dictionary<string, int>();
-        foreach (var (id, w) in Weapons) { d[id + ".mag"] = w.InMag; d[id + ".reserve"] = w.Reserve; }
-        return d;
-    }
-
-    public void RestoreAmmo(Dictionary<string, int> ammo, string? weapon)
-    {
-        foreach (var (id, w) in Weapons)
-        {
-            if (ammo.TryGetValue(id + ".mag", out var m)) w.InMag = m;
-            if (ammo.TryGetValue(id + ".reserve", out var r)) w.Reserve = r;
-        }
-        Equip(weapon ?? (WeaponOrder.Count > 0 ? WeaponOrder[0] : null));
-    }
+    private void ShowWeapon() => _model.ShowWeapon(State.CurrentWeapon?.Data.Kind);
 
     // ------------------------------------------------------------------ riding
 
@@ -118,6 +88,7 @@ public partial class Player : CharacterBody3D, IPlayerView
     {
         if (IsMounted || IsDead) return;
         Mounted = horse;
+        State.Mount = Veld.Sim.Characters.Mount.Riding;
         horse.SetRider(this);
         CollisionLayer = 0;
         CollisionMask = 0;
@@ -131,6 +102,7 @@ public partial class Player : CharacterBody3D, IPlayerView
         if (Mounted == null) return;
         var horse = Mounted;
         Mounted = null;
+        State.Mount = Veld.Sim.Characters.Mount.OnFoot;
         horse.SetRider(null);
         CollisionLayer = Layers.Characters;
         CollisionMask = Layers.Solid | Layers.Horses;
@@ -146,6 +118,7 @@ public partial class Player : CharacterBody3D, IPlayerView
         if (Driving != null || IsDead || v.Occupied) return;
         if (IsMounted) Dismount();
         Driving = v;
+        State.Mount = Veld.Sim.Characters.Mount.Driving;
         v.SetDriver(this);
         CollisionLayer = 0;
         CollisionMask = 0;
@@ -166,6 +139,7 @@ public partial class Player : CharacterBody3D, IPlayerView
         if (Driving == null) return;
         var v = Driving;
         Driving = null;
+        State.Mount = Veld.Sim.Characters.Mount.OnFoot;
         v.SetDriver(null);
         // the collision shape comes back next physics frame: restoring it now, while the physics
         // server still has this body at the seat inside the car, resolves that overlap with a kick
@@ -186,52 +160,34 @@ public partial class Player : CharacterBody3D, IPlayerView
     public void TakeDamage(int amount, Node? attacker)
     {
         if (IsDead) return;
-        Health -= amount;
-        _sinceHit = 0f;
+        State.TakeDamage(amount);
         _main.Sfx.Hit(GlobalPosition);
         _main.Hud.FlashDamage();
-        if (Health <= 0) Die();
     }
 
-    public void SetDeadEye(bool on)
+    private void ShowDeadEye(bool on)
     {
-        if (DeadEyeActive == on) return;
-        DeadEyeActive = on;
         Engine.TimeScale = on ? 0.3 : 1.0;
         _main.DayNight.DeadEye = on;
         _main.Sfx.Click(GlobalPosition);
     }
 
-    private void Die()
+    private void ShowDeath()
     {
-        SetDeadEye(false);
-        IsDead = true;
-        Health = 0;
         Dismount();
         ExitVehicle();
         Aiming = false;
         Camera.Aiming = false;
         _model.SetDead(true);
-        _deadTimer = 4f;
-        _notifier.Notify("You are dead.");
     }
 
-    private void Respawn()
+    private void ShowRespawn()
     {
-        IsDead = false;
-        Health = MaxHealth;
-        Stamina = 100f;
         _model.SetDead(false);
-        _wanted.SetLevel(0);
-        int loss = Mathf.Min(_purse.Pence, 2 * Money.Shilling);
-        if (loss > 0) _purse.Add(-loss);
-        var world = _data.World;
-        var spawn = DataLoader.XZ(world.PlayerSpawn);
+        var spawn = DataLoader.XZ(_data.World.PlayerSpawn);
         var terrain = _main.World.Terrain;
         GlobalPosition = new Vector3(spawn.X, terrain.GetHeight(spawn.X, spawn.Y) + 1f, spawn.Y);
         Velocity = Vector3.Zero;
-        foreach (var w in Weapons.Values) if (w.InMag == 0 && w.Reserve == 0) w.Reserve = w.Data.MagSize * 2;
-        _notifier.Notify("You come to at the station. The doctor took " + Money.Format(loss) + " for his trouble.");
     }
 
     // ------------------------------------------------------------------ main loop
@@ -239,7 +195,7 @@ public partial class Player : CharacterBody3D, IPlayerView
     public override void _PhysicsProcess(double delta)
     {
         float dt = (float)delta;
-        foreach (var w in Weapons.Values) w.Tick(dt);
+        float realDt = dt / (float)Engine.TimeScale;
         if (_restoreCollision)
         {
             _restoreCollision = false;
@@ -249,15 +205,11 @@ public partial class Player : CharacterBody3D, IPlayerView
 
         if (IsDead)
         {
-            _deadTimer -= dt;
+            State.Tick(dt, realDt, aiming: false, wantSprint: false, moving: false, onFoot: false);
             Velocity = new Vector3(0, Velocity.Y - Gravity * dt, 0);
             MoveAndSlide();
-            if (_deadTimer <= 0f) Respawn();
             return;
         }
-
-        _sinceHit += dt;
-        if (_sinceHit > 6f && Health < MaxHealth) { _regen += dt * 4f; if (_regen >= 1f) { Health = Mathf.Min(MaxHealth, Health + (int)_regen); _regen -= (int)_regen; } }
 
         bool locked = _ui.InputLocked;
         var move = locked ? Vector2.Zero : Input.GetVector("move_left", "move_right", "move_forward", "move_back");
@@ -267,13 +219,8 @@ public partial class Player : CharacterBody3D, IPlayerView
         _model.SetAiming(Aiming);
 
         // Dead Eye: Q while aiming slows the world while the meter lasts
-        if (!locked && Input.IsActionJustPressed("deadeye") && Aiming && DeadEye > 5f) SetDeadEye(!DeadEyeActive);
-        if (DeadEyeActive)
-        {
-            DeadEye -= 15f * dt / (float)Engine.TimeScale;
-            if (!Aiming || DeadEye <= 0f) SetDeadEye(false);
-        }
-        else DeadEye = Mathf.Min(100f, DeadEye + 2.5f * dt);
+        if (!locked && Input.IsActionJustPressed("deadeye") && Aiming) State.ToggleDeadEye();
+        State.Tick(dt, realDt, Aiming, sprint, move.LengthSquared() > 0.01f, onFoot: Driving == null && !IsMounted);
 
         if (Driving != null)
         {
@@ -298,7 +245,7 @@ public partial class Player : CharacterBody3D, IPlayerView
         }
         else
         {
-            Walk(move, sprint, !locked && Input.IsActionJustPressed("jump"), dt);
+            Walk(move, !locked && Input.IsActionJustPressed("jump"), dt);
             UpdateFocus();
             if (!locked && Input.IsActionJustPressed("interact") && Focus != null && Focus.CanInteract(this)) Focus.Interact(this);
         }
@@ -311,25 +258,19 @@ public partial class Player : CharacterBody3D, IPlayerView
         if (!locked && Input.IsActionPressed("shoot")) TryShoot();
     }
 
-    private float _regen;
-
     private void HandleWeaponKeys()
     {
-        if (Input.IsActionJustPressed("weapon_1") && WeaponOrder.Count > 0) Equip(WeaponOrder[0]);
-        if (Input.IsActionJustPressed("weapon_2") && WeaponOrder.Count > 1) Equip(WeaponOrder[1]);
+        if (Input.IsActionJustPressed("weapon_1") && Weapons.Count > 0) Equip(Weapons[0].Data.Id);
+        if (Input.IsActionJustPressed("weapon_2") && Weapons.Count > 1) Equip(Weapons[1].Data.Id);
         if (Input.IsActionJustPressed("holster")) Equip(null);
-        if (Input.IsActionJustPressed("reload") && CurrentWeapon != null && CurrentWeapon.StartReload())
-            _main.Sfx.Click(GlobalPosition);
+        if (Input.IsActionJustPressed("reload") && State.Reload()) _main.Sfx.Click(GlobalPosition);
     }
 
-    private void Walk(Vector2 move, bool sprint, bool jump, float dt)
+    private void Walk(Vector2 move, bool jump, float dt)
     {
         var dir = (Camera.FlatForward * -move.Y + Camera.FlatRight * move.X);
         if (dir.LengthSquared() > 1f) dir = dir.Normalized();
-        bool wantSprint = sprint && move.LengthSquared() > 0.01f && Stamina > 1f && !Aiming;
-        float speed = Aiming ? WalkSpeed * 0.6f : wantSprint ? SprintSpeed : WalkSpeed;
-        if (wantSprint) Stamina = Mathf.Max(0f, Stamina - 14f * dt);
-        else Stamina = Mathf.Min(100f, Stamina + 10f * dt);
+        float speed = Aiming ? WalkSpeed * 0.6f : State.Sprinting ? SprintSpeed : WalkSpeed;
 
         var v = Velocity;
         var target = dir * speed;
@@ -385,11 +326,7 @@ public partial class Player : CharacterBody3D, IPlayerView
         if (w == null) return;
         if (!w.CanFire)
         {
-            if (w.InMag == 0 && !w.Reloading && Input.IsActionJustPressed("shoot"))
-            {
-                if (!w.StartReload()) _notifier.Notify("Out of ammunition for the " + w.Data.Name + ".");
-                else _main.Sfx.Click(GlobalPosition);
-            }
+            if (w.InMag == 0 && !w.Reloading && Input.IsActionJustPressed("shoot") && State.Reload()) _main.Sfx.Click(GlobalPosition);
             return;
         }
         if (w.Data.Kind == "rifle" && !Input.IsActionJustPressed("shoot")) return; // bolt action: one shot per click
@@ -398,10 +335,10 @@ public partial class Player : CharacterBody3D, IPlayerView
         if (Mounted != null) exclude.Add(Mounted.GetRid());
         // aim from the camera so the crosshair is honest; start a little in front of the lens
         var origin = Camera.AimOrigin + Camera.AimDirection * 0.5f;
-        var shot = w.Fire(this, origin, Camera.AimDirection, Weapon.HitSpread(w.Data, Aiming), exclude);
+        var shot = Shooting.Fire(this, w, origin, Camera.AimDirection, w.HitSpread(Aiming), exclude);
         ShotEffects.Show(GetParent(), shot, _model.MuzzleWorld);
         _main.Sfx.Gunshot(w.Data.Kind, GlobalPosition);
-        _wanted.OnGunfire(GlobalPosition, null);
+        State.ReportGunfire(GlobalPosition);
         if (shot.Hit && shot.Collider is Npc npc) npc.TakeDamage(w.Data.Damage, this);
         else if (shot.Hit && shot.Collider is Horse horse) horse.Spook();
         Camera.Pitch += 0.012f * (w.Data.Kind == "rifle" ? 1.6f : 1f);

@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Godot;
 using Veld.Sim;
 using Veld.Tests.Fakes;
@@ -16,7 +17,8 @@ public class SimulationTests
     /// <summary>A modern map with 5.00 to start, a 7:30 start and one errand: walk to the corner for 1.00.</summary>
     private static GameData Data() => new()
     {
-        World = new WorldData { Era = "modern", StartMoney = 500, StartHour = 7.5f, DayLengthSeconds = 720f },
+        World = new WorldData { Era = "modern", StartMoney = 500, StartHour = 7.5f, DayLengthSeconds = 720f, PlayerWeapons = new List<string> { "pistol" } },
+        Weapons = { ["pistol"] = new WeaponData { Id = "pistol" } },
         Missions =
         {
             new MissionData
@@ -37,6 +39,15 @@ public class SimulationTests
         Assert.Equal(500, sim.Purse.Pence);
         Assert.Equal(7.5f, sim.Clock.Hour, 3);
         Assert.Equal(1, sim.Clock.Day);
+    }
+
+    [Fact]
+    public void The_player_carries_the_maps_weapons()
+    {
+        var sim = Sim();
+
+        Assert.Single(sim.Player.Weapons);
+        Assert.Equal("pistol", sim.Player.CurrentWeaponId);
     }
 
     [Fact]

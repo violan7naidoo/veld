@@ -18,6 +18,14 @@ _Avoid_: game state, the model, the services
 One advance of the simulation by a fixed slice of time, driven once per physics frame. The simulation never reads wall-clock time.
 _Avoid_: update, frame, step (a mission step is something else)
 
+**Standing**:
+The player's reputation with the residents, a signed count that falls when they are harmed; below -2 the residents turn hostile.
+_Avoid_: reputation (the class name, not the player-facing word), karma, honour
+
+**Dead Eye**:
+The slow-motion aiming meter, 0 to 100: toggled while aiming when above 5, it drains while the world runs slow and refills while off.
+_Avoid_: bullet time, slow-mo, focus
+
 **Sim clock**:
 Game time as hour of day and day number. A game day lasts the map's `dayLengthSeconds` of ticks; the sky, lamps and the HUD clock render it, and sleeping advances it.
 _Avoid_: day-night (that is the renderer), world time, time of day

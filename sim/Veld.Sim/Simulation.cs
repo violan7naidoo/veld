@@ -23,6 +23,7 @@ public sealed class Simulation
         Missions = new MissionManager(data, world, Purse, notifier);
         Wanted = new WantedSystem(world, notifier);
         Dialogue = new DialogueSystem(data, Missions, Wanted, world, Purse, notifier, Clock, view);
+        Player = new PlayerState(data.World.PlayerWeapons, data.Weapons, Purse, Wanted, notifier);
     }
 
     public SimClock Clock { get; }
@@ -31,6 +32,7 @@ public sealed class Simulation
     public MissionManager Missions { get; }
     public WantedSystem Wanted { get; }
     public DialogueSystem Dialogue { get; }
+    public PlayerState Player { get; }
     public IRandom Random { get; }
 
     /// <summary>A brain for one body: the character's weapon comes from the data's weapon id, its systems from here.</summary>

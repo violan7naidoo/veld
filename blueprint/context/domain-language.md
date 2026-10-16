@@ -26,6 +26,10 @@ _Avoid_: reputation (the class name, not the player-facing word), karma, honour
 The slow-motion aiming meter, 0 to 100: toggled while aiming when above 5, it drains while the world runs slow and refills while off.
 _Avoid_: bullet time, slow-mo, focus
 
+**Snapshot**:
+The whole simulation at one instant: purse, standing, sim clock, missions, wanted state, the player's state and who is dead. The save file is one, with the player's position riding along; restoring one puts the simulation back and leaves the body to be moved.
+_Avoid_: save data, save state, serialised state, checkpoint (that is a git term here)
+
 **Sim clock**:
 Game time as hour of day and day number. A game day lasts the map's `dayLengthSeconds` of ticks; the sky, lamps and the HUD clock render it, and sleeping advances it.
 _Avoid_: day-night (that is the renderer), world time, time of day

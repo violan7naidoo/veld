@@ -18,8 +18,6 @@ public partial class WorldBuilder : Node3D
     public Vehicle? PlayerCar { get; private set; }
     public Horse? Horse { get; private set; }
     public List<Npc> Npcs { get; } = new();
-    /// <summary>Ids of characters who have died; respected on spawn and on load.</summary>
-    public HashSet<string> DeadNpcs { get; } = new();
     public Dictionary<string, TownData> Towns { get; } = new();
     public Dictionary<string, Vector3> TownCenters { get; } = new();
 
@@ -230,7 +228,6 @@ public partial class WorldBuilder : Node3D
         npc.Position = Resolve(data.Position, data.Town, data.Offset) + new Vector3(0, 1.0f, 0);
         AddChild(npc);
         Npcs.Add(npc);
-        if (DeadNpcs.Contains(data.Id)) npc.MarkDeadSilently();
         return npc;
     }
 
@@ -241,9 +238,9 @@ public partial class WorldBuilder : Node3D
         foreach (var n in Npcs) if (n.Data.Group == group) yield return n;
     }
 
-    public void ApplyDeadNpcs()
+    /// <summary>After a restore: every body whose brain is dead shows it.</summary>
+    public void ShowDead()
     {
-        foreach (var n in Npcs)
-            if (DeadNpcs.Contains(n.Data.Id) && !n.IsDead) n.MarkDeadSilently();
+        foreach (var n in Npcs) if (n.IsDead) n.ShowDead();
     }
 }

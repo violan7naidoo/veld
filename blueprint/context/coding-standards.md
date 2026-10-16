@@ -1,8 +1,8 @@
 # Coding Standards
 
 > The conventions this codebase actually follows, written by `/adopt` on
-> 2026-10-14 from the code as it is. Where a line describes where we are going
-> rather than where we are, it says so. Edit to taste; `/implement` and
+> 2026-10-14 from the code as it is. Where a line describes a direction
+> rather than the code today, it says so. Edit to taste; `/implement` and
 > `/audit` hold work to this file.
 
 ## Stack
@@ -22,7 +22,7 @@
 - `scripts/UI/` - HUD, minimap, world map, dialogue box, pause menu
 - `scripts/Audio/` - generated sounds
 - `data/maps/<map-id>/` - one folder per map; generated files next to hand-written ones
-- `sim/Veld.Sim/` - the simulation library: the `Simulation` and the sim clock, the data model and loader, money, factions, the ports (world, notifier, dialogue view, clock, dice), purse, standing, notifier, missions, dialogue, wanted system, and under `Characters/` the brain, senses and intent of every NPC and the `PlayerState` with its `WeaponState`s; no engine access
+- `sim/Veld.Sim/` - the simulation library: the `Simulation` and the sim clock, the data model and loader, money, factions, the ports (world, notifier, dialogue view, clock, dice), purse, standing, notifier, missions, dialogue, wanted system, and under `Characters/` the brain, senses and intent of every NPC and the `PlayerState` with its `WeaponState`s, and the `SimSnapshot` the save file is; no engine access
 - `tests/Veld.Tests/` - unit tests over `sim/Veld.Sim/`; the test project references the library, never the game
 
 One system per file. A file is named after the type it holds.
@@ -46,7 +46,7 @@ One system per file. A file is named after the type it holds.
 - Positions in data are `[x, z]` metres from the map centre, x east, z south;
   height always comes from the terrain.
 
-## Dependencies and seams (where we are going)
+## Dependencies and seams
 
 - `Main` is the composition root: it loads the data, creates the `Simulation`
   and the game-side services (notifier, settings, UI state, save file), and
@@ -83,8 +83,10 @@ One system per file. A file is named after the type it holds.
   `WeaponState`s, the mount and death; the `Player` node feeds it each
   frame's input and renders death, respawn and Dead Eye through its events,
   and both bodies fire through one `Shooting.Fire`. New simulation code
-  goes in the library and is driven from `Tick`; item 19e makes the save a
-  snapshot of the simulation.
+  goes in the library and is driven from `Tick`. The save file is a
+  `SimSnapshot`: `Simulation.Snapshot` and `Restore` carry everything the
+  simulation is, dead characters included, and `SaveGame` only writes it,
+  reads it and moves the body (item 19e, which closed item 19).
 
 ## Content rules
 

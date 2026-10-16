@@ -31,7 +31,6 @@ public partial class Npc : CharacterBody3D, IInteractable, INpcView
 
     private HumanoidModel _model = null!;
     private Label3D _label = null!;
-    private bool _pendingDead;
     private const float Gravity = 9.8f;
     private Main _main = null!;
     private GameData _data = null!;
@@ -73,7 +72,7 @@ public partial class Npc : CharacterBody3D, IInteractable, INpcView
         AddChild(_label);
 
         Brain.Settle(GlobalPosition);
-        if (_pendingDead) MarkDeadSilently();
+        if (Brain.IsDead) ShowDead();
     }
 
     // ------------------------------------------------------------------ interaction
@@ -100,28 +99,17 @@ public partial class Npc : CharacterBody3D, IInteractable, INpcView
     {
         if (IsDead) return;
         var from = attacker is Node3D a ? a.GlobalPosition : GlobalPosition;
-        if (Brain.TakeDamage(amount, attacker as Player, from)) Die();
+        if (Brain.TakeDamage(amount, attacker as Player, from)) ShowDead();
     }
 
-    private void Die()
+    /// <summary>What a dead body looks like; the brain decides when. Harmless to call twice.</summary>
+    public void ShowDead()
     {
         _model.SetDead(true);
         _label.Visible = false;
         CollisionLayer = 0;
         CollisionMask = Layers.Terrain;
         Velocity = Vector3.Zero;
-        _main.World.DeadNpcs.Add(Data.Id);
-    }
-
-    /// <summary>Used when loading a save: the NPC is already dead, no effects, no mission events.</summary>
-    public void MarkDeadSilently()
-    {
-        if (_model == null) { _pendingDead = true; return; }
-        Brain.MarkDeadSilently();
-        _model.SetDead(true);
-        _label.Visible = false;
-        CollisionLayer = 0;
-        CollisionMask = Layers.Terrain;
     }
 
     public void Alert(Vector3 from) => Brain.Alert(from);

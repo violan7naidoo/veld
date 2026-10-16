@@ -41,12 +41,12 @@
   - [x] 18d. **Player and camera off the singleton** - `Player` and `CameraRig` (26 sites)
   - [x] 18e. **NPCs, horse and vehicles off the singleton** - `Npc`, `Horse` and `Vehicle` (36 sites)
   - [x] 18f. **Delete the autoload** - `Main` loads the data and composes every service and system, the live adapters read `Main`, the dev harnesses follow, `Game.cs` and the autoload entry go; `Game.Instance` appears nowhere (12 sites)
-- [ ] 19. **Simulation and presentation split** - a `Veld.Sim` library holding world, mission, NPC and economy state at a fixed tick; Godot nodes render and forward input
+- [x] 19. **Simulation and presentation split** - a `Veld.Sim` library holding world, mission, NPC and economy state at a fixed tick; Godot nodes render and forward input
   - [x] 19a. **The Veld.Sim library** - a class library under `sim/Veld.Sim/` holding the code that already has no node dependency: the data model and loader behind a file port, money, factions, the ports, purse, standing, notifier, missions, dialogue and wanted; `Veld.Sim` namespaces; the game and the tests reference it
   - [x] 19b. **The Simulation object and the fixed tick** - one `Simulation` owning the purse, standing, clock, missions, wanted and dialogue, ticked from `Main` at the physics rate; `DayNight` renders the sim clock; save and load read the simulation
   - [x] 19c. **NPC decisions in the simulation** - hostility, the state machine, targets, shots and loot as a character brain in `Veld.Sim`, tested; the `Npc` node becomes body and view
   - [x] 19d. **Player state in the simulation** - `PlayerState` and `WeaponState` in `Veld.Sim.Characters`: health and regen, stamina, the dead eye meter, weapons and ammo with reload and cooldown, mount and drive state, death and respawn; the `Player` node becomes body and view and both bodies share one shot raycast
-  - [ ] 19e. **The save as a snapshot of the simulation** - `Simulation.Snapshot` and `Restore` over purse, standing, clock, missions, wanted, the player's state and the dead characters; `SaveGame` serialises the snapshot and only moves the player's body; `WorldBuilder.DeadNpcs` retired; the prerequisite for multiplayer
+  - [x] 19e. **The save as a snapshot of the simulation** - `Simulation.Snapshot` and `Restore` over purse, standing, clock, missions, wanted, the player's state and the dead characters; `SaveGame` serialises the snapshot and only moves the player's body; `WorldBuilder.DeadNpcs` retired; the prerequisite for multiplayer
 
 ## Post-MVP: enhancements
 

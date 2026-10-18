@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Godot;
 using Veld.Core;
 using Veld.Sim;
+using Veld.Sim.Geometry;
 
 namespace Veld.World;
 
@@ -21,6 +22,8 @@ public partial class FootprintBuilder : Node3D
     private int _labels, _walls, _doors, _dishCount;
     public static int ModelsPlaced { get; private set; }
     public static int FacadesPlaced { get; private set; }
+    public static int SkeletonRoofs { get; private set; }
+    public static int SkeletonFallbacks { get; private set; }
     private readonly Dictionary<string, PackedScene?> _models = new();
     private readonly List<(Vector2 a, Vector2 b, float width)> _roads = new();
     private readonly Dictionary<(int, int), List<int>> _roadGrid = new();
@@ -43,7 +46,7 @@ public partial class FootprintBuilder : Node3D
         _terrain = terrain;
         _mapFolder = mapFolder;
         _plates = plates;
-        ModelsPlaced = 0; FacadesPlaced = 0;
+        ModelsPlaced = 0; FacadesPlaced = 0; SkeletonRoofs = 0; SkeletonFallbacks = 0;
         IndexRoads(world);
 
         var chunks = new Dictionary<(int, int), Chunk>();
@@ -53,7 +56,7 @@ public partial class FootprintBuilder : Node3D
             var poly = new List<Vector2>();
             foreach (var p in b.Polygon) poly.Add(DataLoader.XZ(p));
             if (poly.Count < 3) continue;
-            var c = Centroid(poly);
+            var c = Polygons.Centroid(poly);
             if (!terrain.InBounds(c.X, c.Y, 2f)) continue;
             var key = (Mathf.FloorToInt((c.X + terrain.Size / 2) / ChunkSize), Mathf.FloorToInt((c.Y + terrain.Size / 2) / ChunkSize));
             if (!chunks.TryGetValue(key, out var chunk)) { chunk = new Chunk(); chunks[key] = chunk; }
@@ -99,7 +102,7 @@ public partial class FootprintBuilder : Node3D
             for (int i = 0; i < _dishes.Count; i++) mm.SetInstanceTransform(i, _dishes[i]);
             AddChild(new MultiMeshInstance3D { Name = "Dishes", Multimesh = mm, GIMode = GeometryInstance3D.GIModeEnum.Disabled, CastShadow = GeometryInstance3D.ShadowCastingSetting.Off });
         }
-        GD.Print($"buildings: {index} footprints in {chunks.Count} chunks ({nodes} nodes), {_walls} boundary walls, {_doors} doors, {_plates?.Count ?? 0} number plates, {_dishes.Count} dishes, {_labels} labels, {ModelsPlaced} real models, {FacadesPlaced} facade photos");
+        GD.Print($"buildings: {index} footprints in {chunks.Count} chunks ({nodes} nodes), {_walls} boundary walls, {_doors} doors, {_plates?.Count ?? 0} number plates, {_dishes.Count} dishes, {_labels} labels, {ModelsPlaced} real models, {FacadesPlaced} facade photos, {SkeletonRoofs} skeleton roofs ({SkeletonFallbacks} fell back)");
     }
 
     // ------------------------------------------------------------------ roads (to find each house's front)
@@ -165,8 +168,8 @@ public partial class FootprintBuilder : Node3D
 
     private void AddBuilding(Chunk chunk, FootprintData b, List<Vector2> poly, Vector2 centroid, int index)
     {
-        if (SignedArea(poly) < 0) poly.Reverse();
-        float area = Mathf.Abs(SignedArea(poly));
+        if (Polygons.SignedArea(poly) < 0) poly.Reverse();
+        float area = Mathf.Abs(Polygons.SignedArea(poly));
         if (area < 2.5f) return;
 
         float ground = float.MaxValue, groundMax = float.MinValue;
@@ -264,18 +267,36 @@ public partial class FootprintBuilder : Node3D
         }
 
         // roof
-        var rect = OrientedRect(poly);
-        bool rectangular = !big && !extension && rect.HasValue && area / (rect.Value.halfLong * 2f * rect.Value.halfShort * 2f) > 0.84f && rect.Value.halfShort > 1.5f;
+        var rect = Polygons.OrientedRect(poly);
+        bool rectangular = !big && !extension && rect.HasValue && area / (rect.Value.HalfLong * 2f * rect.Value.HalfShort * 2f) > 0.84f && rect.Value.HalfShort > 1.5f;
         if (b.RoofKind == "flat") rectangular = false;
+        bool ironRoof = b.RoofKind == "iron" || (b.RoofKind == "" && h2 >= 60 && h2 < 80);
+        var roofTint = ironRoof ? IronTints[h4 % (uint)IronTints.Length] : TileTints[h4 % (uint)TileTints.Length];
+        if (b.RoofColor.StartsWith("#")) { var rc = Color.FromHtml(b.RoofColor); roofTint = new Color(rc.R * 1.35f, rc.G * 1.35f, rc.B * 1.35f); }
+        bool roofed = false;
         if (rectangular)
         {
-            bool ironRoof = b.RoofKind == "iron" || (b.RoofKind == "" && h2 >= 60 && h2 < 80);
-            var roofTint = ironRoof ? IronTints[h4 % (uint)IronTints.Length] : TileTints[h4 % (uint)TileTints.Length];
-            if (b.RoofColor.StartsWith("#")) { var rc = Color.FromHtml(b.RoofColor); roofTint = new Color(rc.R * 1.35f, rc.G * 1.35f, rc.B * 1.35f); }
             HipRoof(ironRoof ? chunk.Iron : chunk.Tiles, ref (ironRoof ? ref chunk.NIron : ref chunk.NTiles), chunk, rect!.Value, topY, roofTint);
             if (h1 >= 55 && h1 < 90) Dish(rect.Value, topY, hash);
+            roofed = true;
         }
-        else
+        else if (!big && !extension && b.RoofKind != "flat")
+        {
+            // L, T and U shaped houses: the straight skeleton of the outline at the rectangle hip's pitch
+            var outline = RoofOutline.Simplify(poly);
+            var wide = RoofOutline.Offset(outline, 0.45f);
+            if (RoofOutline.IsRoofable(outline) && RoofOutline.IsRoofable(wide))
+            {
+                if (SkeletonRoof(ironRoof ? chunk.Iron : chunk.Tiles, ref (ironRoof ? ref chunk.NIron : ref chunk.NTiles), chunk, wide, topY, roofTint))
+                {
+                    SkeletonRoofs++;
+                    roofed = true;
+                    if (h1 >= 55 && h1 < 90 && rect.HasValue) Dish(rect.Value, topY, hash);
+                }
+                else SkeletonFallbacks++;
+            }
+        }
+        if (!roofed)
         {
             var flatTint = big ? new Color(0.55f, 0.55f, 0.56f) : new Color(0.5f, 0.5f, 0.5f);
             if (b.RoofColor.StartsWith("#")) { var rc = Color.FromHtml(b.RoofColor); flatTint = new Color(rc.R * 1.3f, rc.G * 1.3f, rc.B * 1.3f); }
@@ -408,13 +429,13 @@ public partial class FootprintBuilder : Node3D
         _walls++;
     }
 
-    private void Dish((Vector2 center, Vector2 axis, float halfLong, float halfShort) r, float roofY, uint hash)
+    private void Dish(OrientedRect r, float roofY, uint hash)
     {
         if (_dishes.Count >= 6000) return;
-        var v = new Vector2(-r.axis.Y, r.axis.X);
+        var v = new Vector2(-r.Axis.Y, r.Axis.X);
         float side = (hash >> 16) % 2 == 0 ? 1f : -1f;
-        var p = r.center + r.axis * (r.halfLong * 0.45f * side) + v * (r.halfShort * 0.55f);
-        float rise = Mathf.Clamp((r.halfShort + 0.45f) * 0.5f, 0.8f, 3.5f) * 0.5f;
+        var p = r.Center + r.Axis * (r.HalfLong * 0.45f * side) + v * (r.HalfShort * 0.55f);
+        float rise = Mathf.Clamp((r.HalfShort + 0.45f) * 0.5f, 0.8f, 3.5f) * 0.5f;
         var basis = Basis.Identity.Rotated(Vector3.Up, (hash >> 3) % 628 / 100f).Rotated(Vector3.Right, -0.85f);
         _dishes.Add(new Transform3D(basis, new Vector3(p.X, roofY + rise + 0.35f, p.Y)));
     }
@@ -426,7 +447,7 @@ public partial class FootprintBuilder : Node3D
         Vector2 UV(Vector2 p) => iron ? p : Vector2.Zero;
         if (idx.Length < 3)
         {
-            var c = Centroid(poly);
+            var c = Polygons.Centroid(poly);
             for (int i = 0; i < poly.Count; i++)
             {
                 var a = poly[i]; var b = poly[(i + 1) % poly.Count];
@@ -443,15 +464,15 @@ public partial class FootprintBuilder : Node3D
         }
     }
 
-    private void HipRoof(SurfaceTool st, ref int count, Chunk chunk, (Vector2 center, Vector2 axis, float halfLong, float halfShort) r, float eaveY, Color tint)
+    private void HipRoof(SurfaceTool st, ref int count, Chunk chunk, OrientedRect r, float eaveY, Color tint)
     {
-        var u = r.axis; var v = new Vector2(-u.Y, u.X);
+        var u = r.Axis; var v = new Vector2(-u.Y, u.X);
         float o = 0.45f;
-        float L = r.halfLong + o, S = r.halfShort + o;
+        float L = r.HalfLong + o, S = r.HalfShort + o;
         float rise = Mathf.Clamp(S * 0.5f, 0.8f, 3.5f);
-        float ridgeHalf = Mathf.Max(0f, r.halfLong - r.halfShort);
+        float ridgeHalf = Mathf.Max(0f, r.HalfLong - r.HalfShort);
         Vector3 P(Vector2 p, float y) => new(p.X, y, p.Y);
-        var c = r.center;
+        var c = r.Center;
         var e1 = P(c + u * L + v * S, eaveY); var e2 = P(c - u * L + v * S, eaveY);
         var e3 = P(c - u * L - v * S, eaveY); var e4 = P(c + u * L - v * S, eaveY);
         var r1 = P(c + u * ridgeHalf, eaveY + rise); var r2 = P(c - u * ridgeHalf, eaveY + rise);
@@ -465,6 +486,58 @@ public partial class FootprintBuilder : Node3D
         count += 6;
         Quad(chunk.Flat, e1, Vector2.Zero, e2, Vector2.Zero, e3, Vector2.Zero, e4, Vector2.Zero, Vector3.Down, tint.Darkened(0.4f));
         chunk.NFlat += 2;
+    }
+
+    /// <summary>
+    /// A hipped roof over any roofable outline, given already widened by the eave: its straight skeleton at the
+    /// rectangle hip's pitch, tiled up the slope the same way. False when the skeleton cannot be followed,
+    /// in which case nothing has been added and the caller falls back to a flat roof.
+    /// </summary>
+    private bool SkeletonRoof(SurfaceTool st, ref int count, Chunk chunk, List<Vector2> wide, float eaveY, Color tint)
+    {
+        var faces = StraightSkeleton.Compute(wide);
+        if (faces.Count == 0) return false;
+        float maxHeight = 0f;
+        var plans = new List<(RoofFace face, int[] tris)>(faces.Count);
+        foreach (var f in faces)
+        {
+            if (f.Ring.Count < 3) return false;
+            var plan = new Vector2[f.Ring.Count];
+            for (int i = 0; i < plan.Length; i++) { plan[i] = f.Ring[i].Point; maxHeight = Mathf.Max(maxHeight, f.Ring[i].Height); }
+            var tris = Geometry2D.TriangulatePolygon(plan);
+            if (tris.Length < 3) return false;
+            plans.Add((f, tris));
+        }
+        var underside = Geometry2D.TriangulatePolygon(wide.ToArray());
+        if (maxHeight < 0.05f || underside.Length < 3) return false;
+
+        float rise = Mathf.Clamp(maxHeight * 0.5f, 0.8f, 3.5f);
+        float slope = rise / maxHeight;
+        float tileV = 1f / 0.4f;
+        foreach (var (face, tris) in plans)
+        {
+            var ring = face.Ring;
+            var a = ring[0].Point;
+            var along = (ring[1].Point - a).Normalized();
+            var out2 = new Vector2(along.Y, -along.X);
+            var outward = new Vector3(out2.X * slope, 1f, out2.Y * slope).Normalized();
+            Vector3 P(RoofVertex v) => new(v.Point.X, eaveY + v.Height * slope, v.Point.Y);
+            Vector2 UV(RoofVertex v) => new((v.Point - a).Dot(along), (maxHeight - v.Height) * tileV);
+            for (int i = 0; i + 2 < tris.Length; i += 3)
+            {
+                var v0 = ring[tris[i]]; var v1 = ring[tris[i + 1]]; var v2 = ring[tris[i + 2]];
+                Tri(st, P(v0), P(v1), P(v2), outward, tint, chunk.Faces, UV(v0), UV(v1), UV(v2));
+                count++;
+            }
+        }
+        var dark = tint.Darkened(0.4f);
+        Vector3 Under(int i) => new(wide[underside[i]].X, eaveY, wide[underside[i]].Y);
+        for (int i = 0; i + 2 < underside.Length; i += 3)
+        {
+            Tri(chunk.Flat, Under(i), Under(i + 1), Under(i + 2), Vector3.Down, dark, null);
+            chunk.NFlat++;
+        }
+        return true;
     }
 
     private void Post(Chunk chunk, Vector2 at, float y0, float y1, float r, Color tint)
@@ -500,42 +573,5 @@ public partial class FootprintBuilder : Node3D
         st.SetColor(tint); st.SetNormal(normal); st.SetUV(ub ?? Vector2.Zero); st.AddVertex(b);
         st.SetColor(tint); st.SetNormal(normal); st.SetUV(uc ?? Vector2.Zero); st.AddVertex(c);
         if (faces != null) { faces.Add(a); faces.Add(b); faces.Add(c); }
-    }
-
-    public static float SignedArea(List<Vector2> p)
-    {
-        float s = 0f;
-        for (int i = 0; i < p.Count; i++) { var a = p[i]; var b = p[(i + 1) % p.Count]; s += a.X * b.Y - b.X * a.Y; }
-        return s * 0.5f;
-    }
-
-    public static Vector2 Centroid(List<Vector2> p)
-    {
-        var c = Vector2.Zero;
-        foreach (var q in p) c += q;
-        return c / p.Count;
-    }
-
-    /// <summary>Bounding rectangle aligned with the polygon's longest edge.</summary>
-    public static (Vector2 center, Vector2 axis, float halfLong, float halfShort)? OrientedRect(List<Vector2> poly)
-    {
-        Vector2 best = Vector2.Zero; float bestLen = 0f;
-        for (int i = 0; i < poly.Count; i++)
-        {
-            var e = poly[(i + 1) % poly.Count] - poly[i];
-            if (e.Length() > bestLen) { bestLen = e.Length(); best = e; }
-        }
-        if (bestLen < 0.1f) return null;
-        var u = best / bestLen; var v = new Vector2(-u.Y, u.X);
-        float minU = float.MaxValue, maxU = float.MinValue, minV = float.MaxValue, maxV = float.MinValue;
-        foreach (var p in poly)
-        {
-            float pu = p.Dot(u), pv = p.Dot(v);
-            minU = Mathf.Min(minU, pu); maxU = Mathf.Max(maxU, pu); minV = Mathf.Min(minV, pv); maxV = Mathf.Max(maxV, pv);
-        }
-        float hl = (maxU - minU) / 2f, hs = (maxV - minV) / 2f;
-        var center = u * (minU + hl) + v * (minV + hs);
-        if (hs > hl) { (hl, hs) = (hs, hl); u = v; }
-        return (center, u, hl, hs);
     }
 }

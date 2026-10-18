@@ -84,6 +84,7 @@ public partial class DevSmoke : Node
                     int addressed = AddressIndex.Entries.Count, total = m.Data.World.Buildings.Count;
                     Check(addressed * 10 >= total * 9, $"addresses: {addressed} of {total} buildings have a street number and street");
                     Check(w.Plates != null && w.Plates.Count * 2 >= addressed, $"number plates registered: {w.Plates?.Count ?? 0}");
+                    Check(FootprintBuilder.SkeletonRoofs >= 400 && FootprintBuilder.SkeletonFallbacks == 0, $"hip roofs on {FootprintBuilder.SkeletonRoofs} non-rectangular outlines, {FootprintBuilder.SkeletonFallbacks} fell back");
                     Check(AddressIndex.SuburbAt(new Vector2(p.GlobalPosition.X, p.GlobalPosition.Z)) != "", "spawn is inside a named suburb: " + AddressIndex.SuburbAt(new Vector2(p.GlobalPosition.X, p.GlobalPosition.Z)));
                 }
                 _mark = p.GlobalPosition;
@@ -324,7 +325,36 @@ public partial class DevSmoke : Node
                 Check(m.Weather.Rain > 0.9f && m.Weather.Describe() == "thunderstorm", "weather forced to a thunderstorm: rain " + m.Weather.Rain.ToString("0.00"));
                 Shot("5-night");
                 break;
-            case 760:
+            case 746:
+            {
+                // the L-shaped house at 34 Road 720, seen from the nearest point of its road in daylight
+                var house = new Vector2(-92f, 316f);
+                var stand = house + new Vector2(0f, -14f);
+                float best = float.MaxValue;
+                foreach (var road in m.Data.World.Roads)
+                {
+                    if (road.Name != "Road 720") continue;
+                    for (int i = 0; i + 1 < road.Points.Count; i++)
+                    {
+                        var q = Geometry2D.GetClosestPointToSegment(house, DataLoader.XZ(road.Points[i]), DataLoader.XZ(road.Points[i + 1]));
+                        float d = q.DistanceTo(house);
+                        if (d < best) { best = d; stand = q; }
+                    }
+                }
+                p.GlobalPosition = w.Ground(stand) + Vector3.Up;
+                var to = house - stand;
+                p.Camera.Yaw = Mathf.Atan2(-to.X, -to.Y);
+                p.Camera.Pitch = -0.55f;
+                p.Camera.BaseLength = 12f;
+                p.Camera.TargetOffset = new Vector3(0, 2.5f, 0);
+                m.Sim.Clock.Hour = 12f;
+                m.Weather.Force(Veld.World.Weather.State.Clear);
+                break;
+            }
+            case 800:
+                Shot("7-roof");
+                break;
+            case 802:
                 DirAccess.RemoveAbsolute(ProjectSettings.GlobalizePath(SaveGame.Path));
                 GD.Print($"SMOKE RESULT: {_pass} passed, {_fail} failed");
                 GetTree().Quit(_fail > 0 ? 1 : 0);

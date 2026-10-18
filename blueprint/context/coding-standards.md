@@ -22,7 +22,7 @@
 - `scripts/UI/` - HUD, minimap, world map, dialogue box, pause menu
 - `scripts/Audio/` - generated sounds
 - `data/maps/<map-id>/` - one folder per map; generated files next to hand-written ones
-- `sim/Veld.Sim/` - the simulation library: the `Simulation` and the sim clock, the data model and loader, money, factions, the ports (world, notifier, dialogue view, clock, dice), purse, standing, notifier, missions, dialogue, wanted system, and under `Characters/` the brain, senses and intent of every NPC and the `PlayerState` with its `WeaponState`s, and the `SimSnapshot` the save file is; no engine access
+- `sim/Veld.Sim/` - the simulation library: the `Simulation` and the sim clock, the data model and loader, money, factions, the ports (world, notifier, dialogue view, clock, dice), purse, standing, notifier, missions, dialogue, wanted system, and under `Characters/` the brain, senses and intent of every NPC and the `PlayerState` with its `WeaponState`s, and the `SimSnapshot` the save file is, and under `Geometry/` the pure polygon maths the world builders share, including the straight skeleton that roofs any outline; no engine access
 - `tests/Veld.Tests/` - unit tests over `sim/Veld.Sim/`; the test project references the library, never the game
 
 One system per file. A file is named after the type it holds.
@@ -86,7 +86,10 @@ One system per file. A file is named after the type it holds.
   goes in the library and is driven from `Tick`. The save file is a
   `SimSnapshot`: `Simulation.Snapshot` and `Restore` carry everything the
   simulation is, dead characters included, and `SaveGame` only writes it,
-  reads it and moves the body (item 19e, which closed item 19).
+  reads it and moves the body (item 19e, which closed item 19). Pure
+  geometry lives in the library too, under `Veld.Sim.Geometry`: the world
+  builders prepare outlines and compute roof faces there, tested, and only
+  turn faces into mesh (item 21).
 
 ## Content rules
 

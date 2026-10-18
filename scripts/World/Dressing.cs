@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Godot;
 using Veld.Sim;
+using Veld.Sim.Geometry;
 
 namespace Veld.World;
 
@@ -25,12 +26,12 @@ public partial class Dressing : Node3D
             var poly = new List<Vector2>();
             foreach (var p in a.Polygon) poly.Add(DataLoader.XZ(p));
             if (poly.Count < 3) continue;
-            var c = FootprintBuilder.Centroid(poly);
+            var c = Polygons.Centroid(poly);
             if (!terrain.InBounds(c.X, c.Y, 5f)) continue;
             if (a.Kind == "pitch")
             {
-                var rect = FootprintBuilder.OrientedRect(poly);
-                if (rect.HasValue && rect.Value.halfLong > 20f && (a.Sport is "" or "soccer" or "football" or "multi" or "rugby")) { Goals(rect.Value); goals++; }
+                var rect = Polygons.OrientedRect(poly);
+                if (rect.HasValue && rect.Value.HalfLong > 20f && (a.Sport is "" or "soccer" or "football" or "multi" or "rugby")) { Goals(rect.Value); goals++; }
                 else if (rect.HasValue && a.Sport == "cricket") CricketStrip(rect.Value);
                 else if (rect.HasValue && a.Sport == "basketball") Hoops(rect.Value);
             }
@@ -118,13 +119,13 @@ public partial class Dressing : Node3D
 
     // ------------------------------------------------------------------ sports fields
 
-    private void Goals((Vector2 center, Vector2 axis, float halfLong, float halfShort) r)
+    private void Goals(OrientedRect r)
     {
         var white = Props.Material(new Color(0.95f, 0.95f, 0.95f), 0.6f);
         for (int s = -1; s <= 1; s += 2)
         {
-            var line = r.center + r.axis * (s * (r.halfLong - 3f));
-            var v = new Vector2(-r.axis.Y, r.axis.X);
+            var line = r.Center + r.Axis * (s * (r.HalfLong - 3f));
+            var v = new Vector2(-r.Axis.Y, r.Axis.X);
             var l = line + v * 3.66f; var rr = line - v * 3.66f;
             float y = _terrain.GetHeight(line.X, line.Y);
             var a = new Vector3(l.X, y, l.Y); var b = new Vector3(rr.X, y, rr.Y);
@@ -134,37 +135,37 @@ public partial class Dressing : Node3D
         }
     }
 
-    private void CricketStrip((Vector2 center, Vector2 axis, float halfLong, float halfShort) r)
+    private void CricketStrip(OrientedRect r)
     {
-        var c = r.center;
+        var c = r.Center;
         float y = _terrain.GetHeight(c.X, c.Y);
         var strip = Props.Box(new Vector3(3.05f, 0.03f, 22f), Props.Material(new Color(0.78f, 0.72f, 0.55f), 0.95f), new Vector3(c.X, y + 0.03f, c.Y));
-        strip.Rotation = new Vector3(0, Mathf.Atan2(-r.axis.X, -r.axis.Y), 0);
+        strip.Rotation = new Vector3(0, Mathf.Atan2(-r.Axis.X, -r.Axis.Y), 0);
         AddChild(strip);
         var white = Props.Material(new Color(0.95f, 0.95f, 0.95f), 0.6f);
         for (int s = -1; s <= 1; s += 2)
         {
-            var w = c + r.axis * (s * 10f);
+            var w = c + r.Axis * (s * 10f);
             for (int k = -1; k <= 1; k++)
             {
-                var v = new Vector2(-r.axis.Y, r.axis.X) * (k * 0.11f);
+                var v = new Vector2(-r.Axis.Y, r.Axis.X) * (k * 0.11f);
                 var p = new Vector3(w.X + v.X, y, w.Y + v.Y);
                 TownBuilder.Beam(this, p, p + new Vector3(0, 0.71f, 0), 0.035f, white);
             }
         }
     }
 
-    private void Hoops((Vector2 center, Vector2 axis, float halfLong, float halfShort) r)
+    private void Hoops(OrientedRect r)
     {
         var iron = Props.Material(new Color(0.3f, 0.3f, 0.32f), 0.5f, 0.6f);
         for (int s = -1; s <= 1; s += 2)
         {
-            var p2 = r.center + r.axis * (s * (r.halfLong - 1.2f));
+            var p2 = r.Center + r.Axis * (s * (r.HalfLong - 1.2f));
             float y = _terrain.GetHeight(p2.X, p2.Y);
             var p = new Vector3(p2.X, y, p2.Y);
             TownBuilder.Beam(this, p, p + new Vector3(0, 3.6f, 0), 0.1f, iron);
             var board = Props.Box(new Vector3(1.8f, 1.05f, 0.05f), Props.Material(Colors.White), p + new Vector3(0, 3.3f, 0));
-            board.Rotation = new Vector3(0, Mathf.Atan2(-r.axis.X, -r.axis.Y), 0);
+            board.Rotation = new Vector3(0, Mathf.Atan2(-r.Axis.X, -r.Axis.Y), 0);
             AddChild(board);
         }
     }

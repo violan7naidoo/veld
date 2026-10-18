@@ -50,7 +50,7 @@
 
 ## Post-MVP: enhancements
 
-- [ ] 21. **Roofs for any outline** - hip roofs on L and T shaped houses, not only rectangles
+- [x] 21. **Roofs for any outline** - hip roofs on L and T shaped houses, not only rectangles
 - [ ] 22. **Landmark models** - stadium, shopping centre, police station, schools and filling stations as real models via overrides
 - [ ] 23. **Animals** - dogs, monkeys and birds that wander and flee
 - [ ] 24. **Android build** - Mobile renderer preset, touch controls, performance tiers, runs on a real phone

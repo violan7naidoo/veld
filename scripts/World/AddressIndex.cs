@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using Godot;
 using Veld.Sim;
+using Veld.Sim.Geometry;
 
 namespace Veld.World;
 
@@ -36,7 +37,7 @@ public static class AddressIndex
             if (!b.HasAddress || b.Polygon.Count < 3) continue;
             var e = new Entry { Building = b };
             foreach (var p in b.Polygon) e.Polygon.Add(DataLoader.XZ(p));
-            e.Centre = FootprintBuilder.Centroid(e.Polygon);
+            e.Centre = Polygons.Centroid(e.Polygon);
             Entries.Add(e);
         }
         foreach (var s in world.Suburbs)

@@ -3,7 +3,7 @@
 > An open-world game set in Montford, Chatsworth, Durban, built from real map data: the one-day prototype has become a tested codebase with its simulation split from its rendering, and is now growing towards a phone release and co-op.
 
 > **Generated file.** Distilled by `/overview` from `blueprint/project-plan.md`
-> and `blueprint/build-plan.md` on 2026-10-16. Change the plans and re-run
+> and `blueprint/build-plan.md` on 2026-10-18. Change the plans and re-run
 > `/overview`; do not hand-edit this.
 
 ## Problem
@@ -12,7 +12,7 @@ The prototype rendered the real suburb from day one, but it hung off one
 global singleton, routed behaviour through string switches, had no unit tests
 and ran only on Windows desktop. The refactor (build plan items 14 to 19) has
 delivered on that: the singleton is gone, the game's logic lives in an
-engine-free simulation library with 171 unit tests beside the smoke run, and
+engine-free simulation library with 187 unit tests beside the smoke run, and
 the save file is a snapshot of that simulation. The job now is to grow the
 game towards Android and iOS and, later, multiplayer, without losing that
 footing.
@@ -26,8 +26,9 @@ footing.
 ## Features
 
 Shipped first (1 to 13 and 20), then the refactor MVP (14 to 19), then the
-roadmap in build order. The headline feature is the real suburb: real
-streets, real outlines, real addresses, real public places.
+enhancements in build order, of which 21 has shipped. The headline feature
+is the real suburb: real streets, real outlines, real addresses, real public
+places.
 
 Shipped in the prototype:
 
@@ -55,14 +56,20 @@ Shipped, the refactor MVP:
 18. **Retire the Game singleton** - every call site replaced by services composed in `Main`; `Game.cs` and the autoload are gone.
 19. **Simulation and presentation split** - the `Veld.Sim` library holds the data model and loader, money, factions, the ports, purse, standing, notifier, missions, dialogue and wanted; one `Simulation` owns them with the sim clock and is ticked from `Main` at the physics step; NPC decisions are a brain per character and the player's health, stamina, Dead Eye, weapons, mount and death are a `PlayerState`; Godot nodes are bodies and views; the save is `Simulation.Snapshot` and `Restore`.
 
+Shipped, the first enhancement:
+
+21. **Roofs for any outline** - the straight skeleton of an L, T, U or notched outline at the rectangle hip's pitch, computed and tested in the library; 1,851 of the map's formerly flat houses are hipped, with a valley where the wings meet.
+
 Next, the enhancements, in build order:
 
-21. **Roofs for any outline** - hip roofs on L and T shaped houses, not only rectangles.
 22. **Landmark models** - stadium, shopping centre, police station, schools and filling stations as real models via overrides.
 23. **Animals** - dogs, monkeys and birds that wander and flee.
 24. **Android build** - Mobile renderer preset, touch controls, performance tiers, runs on a real phone.
 25. **More missions** - six to eight on the launch map, with new step types as needed.
 26. **Multiplayer co-op** - server-authoritative, two to four players in one suburb; the simulation library and the snapshot are its prerequisites.
+27. **Crowds** - about a thousand generated residents walking the pavements and parks and talking to each other; some will talk to you, some carry money or valuables you can take; spawned and recycled around the player so the frame rate holds.
+28. **Traffic** - residents driving cars and taxis along the roads with lanes, stops and turns, so the streets are busy.
+29. **Knocked down by a car** - a car that hits the player knocks them off their feet and costs 30% of their health.
 
 ## Data model
 
@@ -84,7 +91,7 @@ centre, x east, z south; height always comes from the terrain.
 - `suburbs[]` - `name`, `polygon[]`
 - `vegetation`, `streetLightSpacing`, `parkedCars`, `railway`, `horseEnabled`
 
-> Load-bearing: `buildings[].number/street/suburb` and `suburbs[]` are read by the HUD, the map search and the smoke test. Keep them.
+> Load-bearing: `buildings[].number/street/suburb` and `suburbs[]` are read by the HUD, the map search and the smoke test. Keep them. A building's `polygon[]` is also what the roof skeleton reads; the builder decides the roof from its shape, so the data needs no roof-shape field.
 
 ### Hand-written per map
 
@@ -94,6 +101,8 @@ centre, x east, z south; height always comes from the terrain.
 - `weapons.json` - `id`, `name`, `kind` (rifle, revolver), `damage`, `magSize`, `rateOfFire`, `reloadTime`, `spreadDegrees`, `hipSpreadDegrees`, `range`, `reserveAmmo`
 - `overrides.json` - `{ buildings: { "<osm id>": { levels, kind, number, street, wall, roofKind, roofColor, facade, model, modelYaw, modelScale } } }`
 - `data/config.json` - `{ map }`
+
+> Items 27 and 28 will need a source for generated residents and drivers (names, roles, lines, routes) that is not in the plans yet; that shape is theirs to define when specced, under the content rules.
 
 ### The simulation and its snapshot
 
@@ -119,8 +128,8 @@ Money is an integer: cents on the modern map, pence (240 to the pound) on a
 
 - **Godot 4.7.2 .NET** - engine; Forward+ renderer on desktop, Mobile renderer planned for Android
 - **C# on .NET 8** (`Godot.NET.Sdk/4.7.2`, nullable, latest language) - all game code, one system per file under `scripts/`
-- **`Veld.Sim`** (`sim/Veld.Sim/`, a plain net8.0 class library referencing `GodotSharp` only for the maths structs) - the simulation: data model and loader, money, factions, the ports, the `Simulation` with its clock, purse, standing, notifier, missions, dialogue, wanted, NPC brains and player state, and the snapshot; no engine API, kept out by a grep fence
-- **xUnit on .NET 8** (`tests/Veld.Tests`, referencing the library alone) - 171 behaviour tests over the simulation through its ports, with in-memory fakes
+- **`Veld.Sim`** (`sim/Veld.Sim/`, a plain net8.0 class library referencing `GodotSharp` only for the maths structs) - the simulation: data model and loader, money, factions, the ports, the `Simulation` with its clock, purse, standing, notifier, missions, dialogue, wanted, NPC brains and player state, the snapshot, and the pure geometry the world builders share (the roof skeleton); no engine API, kept out by a grep fence
+- **xUnit on .NET 8** (`tests/Veld.Tests`, referencing the library alone) - 187 behaviour tests over the simulation and the geometry through their seams, with in-memory fakes
 - **System.Text.Json** - every data file and the save
 - **Python 3, standard library** - the map tools under `tools/` (OpenStreetMap fetch, elevation, eThekwini fetch, converter)
 - **Git on GitHub** (`violan7naidoo/veld`)
@@ -145,7 +154,8 @@ to be replaced.
 
 Content rules: characters are invented; public places keep real names; shops
 get generic signs; missions are small-town stories; the area's history is
-acknowledged, not performed.
+acknowledged, not performed. Generated residents and drivers (items 27 and
+28) fall under the same rules.
 
 ## Deployment
 
@@ -158,7 +168,8 @@ acknowledged, not performed.
 - Target age rating (shooting and police chases suggest Teen / PEGI 16).
 - Monetization model.
 - Android before iOS: assumed, not confirmed.
-- Order of enhancements 21 to 26: the build plan's order is a suggestion; Android was named a priority.
-- `project-plan.md` §3 still lists the SOLID refactor and the addresses under "next"; the build plan has items 14 to 20 shipped. Move them to the shipped list so the plans agree.
+- Order of enhancements 21 to 29: the build plan's order is a suggestion; Android was named a priority, and 27 to 29 were added on 2026-10-18 from play observations without an order.
+- `project-plan.md` §3 still lists the SOLID refactor and the addresses under "next"; the build plan has items 14 to 21 shipped. Move them to the shipped list so the plans agree.
 - eThekwini address data (build plan item 20) appears in no section of `project-plan.md`: add it to §4 as a source, to §5 beside the Python tools, and to §8's attribution line, and confirm its licence terms before a commercial release.
 - `project-plan.md` §4 lists `user://save.json` by field; it is now the simulation's snapshot (item 19e). The fields are the same; say so there.
+- Item 27 is the first feature where performance is the risk: a thousand characters cannot be a thousand live nodes. The plans say nothing about a budget (frame rate, draw distance, pool size); one line in §7 or §8 would let the spec aim at a number.

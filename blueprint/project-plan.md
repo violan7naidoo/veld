@@ -53,7 +53,8 @@ Next, in order:
 - SOLID refactor: unit test runner, service seams out of the singleton, step and
   action registries, retire the singleton, split simulation from presentation
 - Then enhancements: house numbers and addresses, roofs for any outline,
-  landmark models, animals, an Android build, more missions, multiplayer co-op
+  landmark models, animals, crowds, traffic, being knocked down by a car, an
+  Android build, more missions, multiplayer co-op
 
 ## 4. Data - What are we storing?
 

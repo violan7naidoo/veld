@@ -56,6 +56,9 @@
 - [ ] 24. **Android build** - Mobile renderer preset, touch controls, performance tiers, runs on a real phone
 - [ ] 25. **More missions** - six to eight on the launch map, with new step types as needed
 - [ ] 26. **Multiplayer co-op** - server-authoritative, two to four players in one suburb, after item 19
+- [ ] 27. **Crowds** - about a thousand generated residents walking the pavements and parks and talking to each other; some will talk to you, some carry money or valuables you can take; spawned and recycled around the player so the frame rate holds
+- [ ] 28. **Traffic** - residents driving cars and taxis along the roads with lanes, stops and turns, so the streets are busy
+- [ ] 29. **Knocked down by a car** - a car that hits the player knocks them off their feet and costs 30% of their health
 
 > TODO (confirm): order of items 20 to 26. Addresses and the Android build were
 > named as priorities; the rest is a suggested order.
